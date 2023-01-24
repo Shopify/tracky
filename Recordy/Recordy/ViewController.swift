@@ -11,6 +11,28 @@ import ARKit
 import AVFoundation
 import ARKit
 
+struct BrenRenderData: Codable {
+    let fps: Float
+    let resolution_x: Int
+    let resolution_y: Int
+    
+    init(fps: Float, resolutionX: Int, resolutionY: Int) {
+        self.fps = fps
+        self.resolution_x = resolutionX
+        self.resolution_y = resolutionY
+    }
+}
+
+struct BrenWrapper: Codable {
+    let render_data: BrenRenderData
+    let camera_frames: [[[Float]]]
+    
+    init(_ renderData: BrenRenderData, _ cameraFrames: [[[Float]]]) {
+        render_data = renderData
+        camera_frames = cameraFrames
+    }
+}
+
 class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordIndicator: UIView!
@@ -19,11 +41,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     var wantsRecording = false
     var isRecording = false
     var recordStart: TimeInterval = 0
-
+    
     // In-memory recording for now
+    var fps: Float = 60.0
+    var resolutionX: Int = 1
+    var resolutionY: Int = 1
     var projectionMatrix = matrix_identity_float4x4
     var viewMatrices: [simd_float4x4] = []
-
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -32,8 +57,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
-
-        wantsRecording = true
+        
+        setWantsRecording()
         recordIndicator.isHidden = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
@@ -44,7 +69,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
-
+        
         // Run the view's session
         sceneView.session.run(configuration)
     }
@@ -62,11 +87,19 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         if isRecording {
             stopRecording()
         } else {
-            wantsRecording = true
+            setWantsRecording()
         }
     }
-
+    
     // MARK: Recording Functions
+    
+    func setWantsRecording() {
+        wantsRecording = true
+        fps = 60.0 // TODO
+        let scl = UIScreen.main.scale
+        resolutionX = Int(view.frame.size.width * scl)
+        resolutionY = Int(view.frame.size.height * scl)
+    }
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
         print("Starting recording")
@@ -117,7 +150,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     
     func updateRecording(_ renderer: SCNSceneRenderer, _ time: TimeInterval) {
         guard let frame = sceneView.session.currentFrame,
-            let pov = renderer.pointOfView else {
+              let pov = renderer.pointOfView else {
             return
         }
         let ptime = CMTimeMakeWithSeconds(time, preferredTimescale: 600)
@@ -130,22 +163,55 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         if isRecording {
             if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
                 assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: ptime)
-                viewMatrices.append(simd_inverse(pov.simdTransform))
+                //viewMatrices.append(simd_inverse(pov.simdTransform))
+                viewMatrices.append(pov.simdTransform)
                 // TODO: Record object positions?
             }
         }
     }
-
+    
+    func doFinishWriting() {
+        print("Finished writing .mp4")
+        let renderData = BrenRenderData(fps: fps, resolutionX: resolutionX, resolutionY: resolutionY)
+        let cameraFrames = self.viewMatrices.map { tfm in
+            [
+                [tfm.columns.0.x, tfm.columns.1.x, tfm.columns.2.x, tfm.columns.3.x],
+                [tfm.columns.0.y, tfm.columns.1.y, tfm.columns.2.y, tfm.columns.3.y],
+                [tfm.columns.0.z, tfm.columns.1.z, tfm.columns.2.z, tfm.columns.3.z],
+                [tfm.columns.0.w, tfm.columns.1.w, tfm.columns.2.w, tfm.columns.3.w]
+            ]
+        }
+        let data = BrenWrapper(renderData, cameraFrames)
+        let jsonEncoder = JSONEncoder()
+        guard let jsonData = try? jsonEncoder.encode(data),
+              let json = String(data: jsonData, encoding: String.Encoding.utf8)else {
+            print("ERROR: Could not encode json data")
+            return
+        }
+        
+        guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
+            print("ERROR: Could not get documents path")
+            return
+        }
+        let outputURL = URL(fileURLWithPath: "recorded_camera_path.bren", relativeTo: documentsPath)
+        do {
+            try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
+            print("Finished writing .bren")
+        } catch {
+            // TODO: Print error message
+        }
+    }
+    
     func stopRecording() {
         DispatchQueue.main.async {
             self.recordIndicator.isHidden = true
         }
         isRecording = false
         assetWriter.finishWriting {
-            print("Finished writing file")
-            print("View matrix count: \(self.viewMatrices.count)")
+            self.doFinishWriting()
             // TODO: Write out view matrices
             // Handle finishing of writing here
+            return
         }
     }
     
@@ -156,13 +222,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     
     /*
-    // Override to create and configure nodes for anchors added to the view's session.
-    func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
-        let node = SCNNode()
+     // Override to create and configure nodes for anchors added to the view's session.
+     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
+     let node = SCNNode()
      
-        return node
-    }
-    */
+     return node
+     }
+     */
     
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user

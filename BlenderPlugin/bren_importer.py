@@ -51,6 +51,7 @@ def import_brenfile(context, filepath):
 
     # Create camera animation
     for i, frame in enumerate(camera_frames):
+        context.scene.frame_set(i)
         cam.data.keyframe_insert('lens', frame=i)
         cam.matrix_world = CONVERSION_MATRIX @ mathutils.Matrix(frame)
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')
