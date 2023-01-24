@@ -20,16 +20,16 @@
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="818"/>
                             </arscnView>
                             <view clipsSubviews="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="XRp-9x-td3">
-                                <rect key="frame" x="327" y="7" width="60" height="60"/>
+                                <rect key="frame" x="327" y="53" width="30" height="30"/>
                                 <color key="backgroundColor" systemColor="systemRedColor"/>
                                 <constraints>
-                                    <constraint firstAttribute="height" constant="60" id="GbV-H5-Waw"/>
-                                    <constraint firstAttribute="width" constant="60" id="RLP-W5-j91"/>
+                                    <constraint firstAttribute="height" constant="30" id="GbV-H5-Waw"/>
+                                    <constraint firstAttribute="width" constant="30" id="RLP-W5-j91"/>
                                 </constraints>
                                 <userDefinedRuntimeAttributes>
                                     <userDefinedRuntimeAttribute type="boolean" keyPath="layer.masksToBounds" value="YES"/>
                                     <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
-                                        <integer key="value" value="30"/>
+                                        <integer key="value" value="15"/>
                                     </userDefinedRuntimeAttribute>
                                 </userDefinedRuntimeAttributes>
                             </view>
@@ -37,11 +37,11 @@
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
-                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="top" secondItem="XRp-9x-td3" secondAttribute="top" constant="52" id="Ea3-4K-lCd"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="top" secondItem="XRp-9x-td3" secondAttribute="top" constant="6" id="Ea3-4K-lCd"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" id="GsS-dJ-CKf"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="VpT-BR-CcM"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="trailing" secondItem="fQZ-KI-GVf" secondAttribute="trailing" id="XyZ-9z-H8e"/>
-                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="XRp-9x-td3" secondAttribute="trailing" constant="6" id="YIU-Fy-dnh"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="XRp-9x-td3" secondAttribute="trailing" constant="36" id="YIU-Fy-dnh"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="top" secondItem="U0K-SW-4ec" secondAttribute="top" id="rJc-2c-zQA"/>
                         </constraints>
                     </view>

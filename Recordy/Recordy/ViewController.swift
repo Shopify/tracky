@@ -11,43 +11,24 @@ import ARKit
 import AVFoundation
 import ARKit
 
-struct BrenRenderData: Codable {
-    let fps: Float
-    let resolution_x: Int
-    let resolution_y: Int
-    
-    init(fps: Float, resolutionX: Int, resolutionY: Int) {
-        self.fps = fps
-        self.resolution_x = resolutionX
-        self.resolution_y = resolutionY
-    }
-}
-
-struct BrenWrapper: Codable {
-    let render_data: BrenRenderData
-    let camera_frames: [[[Float]]]
-    
-    init(_ renderData: BrenRenderData, _ cameraFrames: [[[Float]]]) {
-        render_data = renderData
-        camera_frames = cameraFrames
-    }
-}
-
 class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordIndicator: UIView!
+    
     var assetWriter: AVAssetWriter!
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor!
     var wantsRecording = false
     var isRecording = false
     var recordStart: TimeInterval = 0
     
-    // In-memory recording for now
-    var fps: Float = 60.0
-    var resolutionX: Int = 1
-    var resolutionY: Int = 1
+    var fps: UInt = 60
+    var resolutionX: UInt = 1
+    var resolutionY: UInt = 1
+    
+    var timestamps: [Float] = []
     var projectionMatrix = matrix_identity_float4x4
-    var viewMatrices: [simd_float4x4] = []
+    var cameraTransforms: [simd_float4x4] = []
+    var lensDatas: [BrenLensData] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -94,11 +75,15 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     // MARK: Recording Functions
     
     func setWantsRecording() {
-        wantsRecording = true
-        fps = 60.0 // TODO
+        // Note: these calls exist here because of and also imply that
+        //       this method will only be called from the main thread.
+        let siz = view.frame.size
         let scl = UIScreen.main.scale
-        resolutionX = Int(view.frame.size.width * scl)
-        resolutionY = Int(view.frame.size.height * scl)
+        fps = UInt(sceneView.preferredFramesPerSecond)
+        resolutionX = UInt(siz.width * scl)
+        resolutionY = UInt(siz.height * scl)
+        
+        wantsRecording = true
     }
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
@@ -143,14 +128,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterInput, sourcePixelBufferAttributes: pixelBufferAttributes)
         assetWriter.startWriting()
         projectionMatrix = simd_float4x4(projectionTransform)
-        viewMatrices.removeAll(keepingCapacity: true)
+        cameraTransforms.removeAll(keepingCapacity: true)
+        timestamps.removeAll(keepingCapacity: true)
+        lensDatas.removeAll(keepingCapacity: true)
         recordStart = time
         isRecording = true
     }
     
     func updateRecording(_ renderer: SCNSceneRenderer, _ time: TimeInterval) {
         guard let frame = sceneView.session.currentFrame,
-              let pov = renderer.pointOfView else {
+              let pov = renderer.pointOfView,
+              let cam = pov.camera else {
             return
         }
         let ptime = CMTimeMakeWithSeconds(time, preferredTimescale: 600)
@@ -163,28 +151,27 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         if isRecording {
             if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
                 assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: ptime)
-                //viewMatrices.append(simd_inverse(pov.simdTransform))
-                viewMatrices.append(pov.simdTransform)
-                // TODO: Record object positions?
+                timestamps.append(Float(time))
+                cameraTransforms.append(pov.simdTransform)
+                lensDatas.append(BrenLensData(
+                    fov: cam.fieldOfView,
+                    focalLength: cam.focalLength,
+                    sensorHeight: cam.sensorHeight,
+                    zNear: cam.zNear,
+                    zFar: cam.zFar,
+                    focusDistance: cam.focusDistance
+                ))
             }
         }
     }
     
-    func doFinishWriting() {
-        print("Finished writing .mp4")
+    func writeBrenfile() {
         let renderData = BrenRenderData(fps: fps, resolutionX: resolutionX, resolutionY: resolutionY)
-        let cameraFrames = self.viewMatrices.map { tfm in
-            [
-                [tfm.columns.0.x, tfm.columns.1.x, tfm.columns.2.x, tfm.columns.3.x],
-                [tfm.columns.0.y, tfm.columns.1.y, tfm.columns.2.y, tfm.columns.3.y],
-                [tfm.columns.0.z, tfm.columns.1.z, tfm.columns.2.z, tfm.columns.3.z],
-                [tfm.columns.0.w, tfm.columns.1.w, tfm.columns.2.w, tfm.columns.3.w]
-            ]
-        }
+        let cameraFrames = BrenCameraFrames(timestamps: timestamps, transforms: cameraTransforms, datas: lensDatas)
         let data = BrenWrapper(renderData, cameraFrames)
         let jsonEncoder = JSONEncoder()
         guard let jsonData = try? jsonEncoder.encode(data),
-              let json = String(data: jsonData, encoding: String.Encoding.utf8)else {
+              let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
             print("ERROR: Could not encode json data")
             return
         }
@@ -208,7 +195,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         isRecording = false
         assetWriter.finishWriting {
-            self.doFinishWriting()
+            print("Finished writing .mp4")
+            self.writeBrenfile()
             // TODO: Write out view matrices
             // Handle finishing of writing here
             return
