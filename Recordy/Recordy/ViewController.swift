@@ -19,6 +19,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     var isRecording = false
     var recordStart: TimeInterval = 0
 
+    // In-memory recording for now
+    var projectionMatrix = matrix_identity_float4x4
+    var viewMatrices: [simd_float4x4] = []
+
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -28,8 +32,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
 
-        // Start the AVAssetWriter
-        startRecording()
+        wantsRecording = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
     }
@@ -60,8 +63,19 @@ class ViewController: UIViewController, ARSCNViewDelegate {
 
     // MARK: Recording Functions
     
-    func startRecording() {
+    func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
         print("Starting recording")
+        guard let capturedImage = sceneView.session.currentFrame?.capturedImage else {
+            print("ERROR: Could not start recording when ARFrame has no captured image")
+            return
+        }
+        guard let projectionTransform = renderer.pointOfView?.camera?.projectionTransform else {
+            print("ERROR: Could not get renderer pov camera")
+            return
+        }
+        let width = CVPixelBufferGetWidthOfPlane(capturedImage, 0)
+        let height = CVPixelBufferGetHeightOfPlane(capturedImage, 0)
+        print("Width: \(width) x Height: \(height)")
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
@@ -73,34 +87,43 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: AVFileType.mp4)
         let outputSettings = [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: 1920,
-            AVVideoHeightKey: 1080
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height,
         ] as [String : Any]
         let assetWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: outputSettings)
         assetWriterInput.expectsMediaDataInRealTime = true
+        assetWriterInput.transform = .init(rotationAngle: .pi/2)
         assetWriter.add(assetWriterInput)
         let pixelBufferAttributes: [String: Any] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
-            kCVPixelBufferWidthKey as String: 1920,
-            kCVPixelBufferHeightKey as String: 1080
+            kCVPixelBufferWidthKey as String: width,
+            kCVPixelBufferHeightKey as String: height
         ]
         assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterInput, sourcePixelBufferAttributes: pixelBufferAttributes)
         assetWriter.startWriting()
-        wantsRecording = true
+        projectionMatrix = simd_float4x4(projectionTransform)
+        viewMatrices.removeAll(keepingCapacity: true)
+        recordStart = time
+        isRecording = true
     }
     
-    func updateRecording(_ time: TimeInterval) {
+    func updateRecording(_ renderer: SCNSceneRenderer, _ time: TimeInterval) {
+        guard let frame = sceneView.session.currentFrame,
+            let pov = renderer.pointOfView else {
+            return
+        }
         let ptime = CMTimeMakeWithSeconds(time, preferredTimescale: 600)
-        if wantsRecording {
+        let hasCapturedImage = sceneView.session.currentFrame?.capturedImage != nil
+        if wantsRecording && hasCapturedImage {
             wantsRecording = false
-            isRecording = true
-            recordStart = time
+            startRecording(renderer, frame, time)
             assetWriter.startSession(atSourceTime: ptime)
         }
         if isRecording {
-            if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData,
-               let pixelBuffer = sceneView.session.currentFrame?.capturedImage {
-                assetWriterPixelBufferInput.append(pixelBuffer, withPresentationTime: ptime)
+            if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
+                assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: ptime)
+                viewMatrices.append(simd_inverse(pov.simdTransform))
+                // TODO: Record object positions?
             }
         }
     }
@@ -109,6 +132,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         isRecording = false
         assetWriter.finishWriting {
             print("Finished writing file")
+            print("View matrix count: \(self.viewMatrices.count)")
+            // TODO: Write out view matrices
             // Handle finishing of writing here
         }
     }
@@ -116,7 +141,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     // MARK: - ARSCNViewDelegate
     
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
-        updateRecording(time)
+        updateRecording(renderer, time)
     }
     
     /*
