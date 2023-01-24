@@ -13,6 +13,7 @@ import ARKit
 
 class ViewController: UIViewController, ARSCNViewDelegate {
     @IBOutlet var sceneView: ARSCNView!
+    @IBOutlet var recordIndicator: UIView!
     var assetWriter: AVAssetWriter!
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor!
     var wantsRecording = false
@@ -33,6 +34,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         sceneView.showsStatistics = true
 
         wantsRecording = true
+        recordIndicator.isHidden = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
     }
@@ -57,14 +59,20 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     // MARK: - UITapGestureRecognizer
     
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-        print("Stopping recording")
-        stopRecording()
+        if isRecording {
+            stopRecording()
+        } else {
+            wantsRecording = true
+        }
     }
 
     // MARK: Recording Functions
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
         print("Starting recording")
+        DispatchQueue.main.async {
+            self.recordIndicator.isHidden = false
+        }
         guard let capturedImage = sceneView.session.currentFrame?.capturedImage else {
             print("ERROR: Could not start recording when ARFrame has no captured image")
             return
@@ -129,6 +137,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
 
     func stopRecording() {
+        DispatchQueue.main.async {
+            self.recordIndicator.isHidden = true
+        }
         isRecording = false
         assetWriter.finishWriting {
             print("Finished writing file")

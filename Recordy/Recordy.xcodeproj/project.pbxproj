@@ -58,8 +58,8 @@
 				84602360297F41C100806DDE /* AppDelegate.swift */,
 				84602364297F41C100806DDE /* ViewController.swift */,
 				84602366297F41C100806DDE /* Main.storyboard */,
-				84602369297F41C200806DDE /* Assets.xcassets */,
 				8460236B297F41C200806DDE /* LaunchScreen.storyboard */,
+				84602369297F41C200806DDE /* Assets.xcassets */,
 			);
 			path = Recordy;
 			sourceTree = "<group>";
