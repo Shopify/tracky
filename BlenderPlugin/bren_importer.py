@@ -22,18 +22,12 @@ from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import axis_conversion
 
 CONVERSION_MATRIX = axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
-
+DEG2RAD = math.pi / 180
 
 def import_brenfile(context, filepath):
     # Parse json data
     with open(filepath, 'r') as f:
         data = json.load(f)
-
-    video_filepath = os.path.join(os.path.dirname(filepath), 'video.mp4')
-    #bpy.ops.object.load_background_image(filepath=video_filepath)
-    #video = bpy.ops.clip.open(directory=os.path.dirname(filepath), files='video.mp4')
-    #video = bpy.ops.clip.open(video_filepath)
-    #video.set_viewport_background()
 
     # Pull out relevant properties
     render_data = data.get('render_data') or {}
@@ -61,14 +55,18 @@ def import_brenfile(context, filepath):
     cam.data.lens_unit = 'MILLIMETERS'
     cam.name = 'ARCamera'
 
+    # Setup video background
+    video_filepath = os.path.join(os.path.dirname(filepath), 'video.mp4')
     background = cam.data.background_images.new()
     background.source = 'MOVIE_CLIP'
     background.clip = bpy.data.movieclips.load(filepath=video_filepath)
+    background.frame_method = 'CROP'
+    background.rotation = 90 * DEG2RAD
+    background.scale = 0.75
     background.show_background_image = True
     cam.data.show_background_images = True
 
     # Create camera animation
-    scale_matrix = mathutils.Matrix.Scale(1, 4)
     for i, _timestamp in enumerate(camera_timestamps):
         mat = mathutils.Matrix(camera_transforms[i])
         data = camera_datas[i]
@@ -78,10 +76,18 @@ def import_brenfile(context, filepath):
         cam.data.lens = focal_length
         cam.data.sensor_height = sensor_height
         cam.data.keyframe_insert('lens', frame=i)
-        cam.matrix_world = scale_matrix @ (CONVERSION_MATRIX @ mat)
+        cam.matrix_world = CONVERSION_MATRIX @ mat
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')
 
     context.scene.frame_set(0)
+
+    # Switch the 3D windows to view through the new camera with the background
+    for screen in context.workspace.screens:
+        for area in screen.areas:
+            for space in area.spaces:
+                if space.type == 'VIEW_3D':
+                    space.camera = cam
+                    space.region_3d.view_perspective = 'CAMERA'
 
     return {'FINISHED'}
     
