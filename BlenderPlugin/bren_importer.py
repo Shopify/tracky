@@ -66,6 +66,14 @@ def import_brenfile(context, filepath):
     background.show_background_image = True
     cam.data.show_background_images = True
 
+    # Switch the 3D windows to view through the new camera with the background
+    for screen in context.workspace.screens:
+        for area in screen.areas:
+            for space in area.spaces:
+                if space.type == 'VIEW_3D':
+                    space.camera = cam
+                    space.region_3d.view_perspective = 'CAMERA'
+
     # Create camera animation
     for i, _timestamp in enumerate(camera_timestamps):
         mat = mathutils.Matrix(camera_transforms[i])
@@ -80,14 +88,6 @@ def import_brenfile(context, filepath):
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')
 
     context.scene.frame_set(0)
-
-    # Switch the 3D windows to view through the new camera with the background
-    for screen in context.workspace.screens:
-        for area in screen.areas:
-            for space in area.spaces:
-                if space.type == 'VIEW_3D':
-                    space.camera = cam
-                    space.region_3d.view_perspective = 'CAMERA'
 
     return {'FINISHED'}
     
