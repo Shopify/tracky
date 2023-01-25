@@ -62,6 +62,7 @@ def import_brenfile(context, filepath):
     cam.name = 'ARCamera'
 
     background = cam.data.background_images.new()
+    background.source = 'MOVIE_CLIP'
     background.clip = bpy.data.movieclips.load(filepath=video_filepath)
     background.show_background_image = True
     cam.data.show_background_images = True
