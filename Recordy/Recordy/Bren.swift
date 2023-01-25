@@ -20,17 +20,37 @@ struct BrenRenderData: Codable {
     }
 }
 
-struct BrenTransform: Codable {
-    let transform: [[Float]]
+struct BrenCameraFrames: Codable {
+    let timestamps: [Float]
+    let transforms: [[[Float]]]
+    let datas: [[Float]]
     
-    init(transform tfm: simd_float4x4) {
-        self.transform = [
-            [tfm.columns.0.x, tfm.columns.1.x, tfm.columns.2.x, tfm.columns.3.x],
-            [tfm.columns.0.y, tfm.columns.1.y, tfm.columns.2.y, tfm.columns.3.y],
-            [tfm.columns.0.z, tfm.columns.1.z, tfm.columns.2.z, tfm.columns.3.z],
-            [tfm.columns.0.w, tfm.columns.1.w, tfm.columns.2.w, tfm.columns.3.w]
-        ]
+    init(timestamps: [Float], transforms: [simd_float4x4], datas: [BrenLensData]) {
+        self.timestamps = timestamps
+        self.transforms = transforms.map(create_transform)
+        self.datas = datas.map({ dat in dat.data })
     }
+}
+
+struct BrenWrapper: Codable {
+    let render_data: BrenRenderData
+    let camera_frames: BrenCameraFrames
+    
+    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames) {
+        render_data = renderData
+        camera_frames = cameraFrames
+    }
+}
+
+// Utility
+
+func create_transform(transform tfm: simd_float4x4) -> [[Float]] {
+    return [
+        [tfm.columns.0.x, tfm.columns.1.x, tfm.columns.2.x, tfm.columns.3.x],
+        [tfm.columns.0.y, tfm.columns.1.y, tfm.columns.2.y, tfm.columns.3.y],
+        [tfm.columns.0.z, tfm.columns.1.z, tfm.columns.2.z, tfm.columns.3.z],
+        [tfm.columns.0.w, tfm.columns.1.w, tfm.columns.2.w, tfm.columns.3.w]
+    ]
 }
 
 struct BrenLensData: Codable {
@@ -57,27 +77,5 @@ struct BrenLensData: Codable {
             Float(zFar),
             Float(focusDistance),
         ]
-    }
-}
-
-struct BrenCameraFrames: Codable {
-    let timestamps: [Float]
-    let transforms: [BrenTransform]
-    let datas: [BrenLensData]
-    
-    init(timestamps: [Float], transforms: [simd_float4x4], datas: [BrenLensData]) {
-        self.timestamps = timestamps
-        self.transforms = transforms.map({ tfm in BrenTransform(transform: tfm) })
-        self.datas = datas
-    }
-}
-
-struct BrenWrapper: Codable {
-    let render_data: BrenRenderData
-    let camera_frames: BrenCameraFrames
-    
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames) {
-        render_data = renderData
-        camera_frames = cameraFrames
     }
 }

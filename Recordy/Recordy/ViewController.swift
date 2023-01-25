@@ -11,7 +11,7 @@ import ARKit
 import AVFoundation
 import ARKit
 
-class ViewController: UIViewController, ARSCNViewDelegate {
+class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordIndicator: UIView!
     
@@ -20,15 +20,27 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     var wantsRecording = false
     var isRecording = false
     var recordStart: TimeInterval = 0
+
+    var recordingDir: URL? = nil
     
     var fps: UInt = 60
     var resolutionX: UInt = 1
     var resolutionY: UInt = 1
-    
+
     var timestamps: [Float] = []
     var projectionMatrix = matrix_identity_float4x4
     var cameraTransforms: [simd_float4x4] = []
     var lensDatas: [BrenLensData] = []
+    var lowestPlane: ARPlaneAnchor? = nil
+    
+    let dateFormatter : DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        return formatter
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -50,9 +62,16 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        configuration.planeDetection = [.horizontal]
+        configuration.isAutoFocusEnabled = true
+        configuration.sceneReconstruction = .meshWithClassification
+        configuration.environmentTexturing = .automatic
+        configuration.isLightEstimationEnabled = true
+        configuration.videoHDRAllowed = false
         
         // Run the view's session
         sceneView.session.run(configuration)
+        sceneView.session.delegate = self
     }
     
     override func viewWillDisappear(_ animated: Bool) {
@@ -80,6 +99,9 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         let siz = view.frame.size
         let scl = UIScreen.main.scale
         fps = UInt(sceneView.preferredFramesPerSecond)
+        if fps == 0 {
+            fps = 60 // idk
+        }
         resolutionX = UInt(siz.width * scl)
         resolutionY = UInt(siz.height * scl)
         
@@ -106,7 +128,17 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             print("ERROR: Could not get documents path")
             return
         }
-        let outputURL = URL(fileURLWithPath: "recorded_ar_video.mp4", relativeTo: documentsPath)
+        let dirname = dateFormatter.string(from: Date.now)
+        let recDir = URL(fileURLWithPath: dirname, isDirectory: true, relativeTo: documentsPath)
+        print("REC DIR: \(recDir)")
+        do {
+            try FileManager.default.createDirectory(at: recDir, withIntermediateDirectories: true)
+        } catch {
+            print("Could not create directory \(recDir)")
+            return
+        }
+        recordingDir = recDir
+        let outputURL = URL(fileURLWithPath: "video.mp4", relativeTo: recDir)
         if FileManager.default.fileExists(atPath: outputURL.path) {
             try? FileManager.default.removeItem(at: outputURL)
         }
@@ -131,6 +163,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
         lensDatas.removeAll(keepingCapacity: true)
+        lowestPlane = nil
         recordStart = time
         isRecording = true
     }
@@ -166,8 +199,25 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     
     func writeBrenfile() {
+        guard let recordDir = recordingDir else {
+            print("ERROR: Cannot save brenfile with nil recordingDir")
+            return
+        }
+
+        var tfms: [simd_float4x4]
+        if let plane = lowestPlane {
+            print("Doing plane transformation")
+            let tmp = SCNNode()
+            tmp.simdTransform = plane.transform
+            sceneView.scene.rootNode.addChildNode(tmp) // Necessary?
+            tfms = cameraTransforms.map({ tfm in return tmp.simdConvertTransform(tfm, from: nil) })
+            tmp.removeFromParentNode() // Necessary?
+        } else {
+            tfms = cameraTransforms
+        }
+
         let renderData = BrenRenderData(fps: fps, resolutionX: resolutionX, resolutionY: resolutionY)
-        let cameraFrames = BrenCameraFrames(timestamps: timestamps, transforms: cameraTransforms, datas: lensDatas)
+        let cameraFrames = BrenCameraFrames(timestamps: timestamps, transforms: tfms, datas: lensDatas)
         let data = BrenWrapper(renderData, cameraFrames)
         let jsonEncoder = JSONEncoder()
         guard let jsonData = try? jsonEncoder.encode(data),
@@ -175,12 +225,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             print("ERROR: Could not encode json data")
             return
         }
-        
-        guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
-            print("ERROR: Could not get documents path")
-            return
-        }
-        let outputURL = URL(fileURLWithPath: "recorded_camera_path.bren", relativeTo: documentsPath)
+
+        let outputURL = URL(fileURLWithPath: "camera.bren", relativeTo: recordDir)
         do {
             try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
             print("Finished writing .bren")
@@ -202,6 +248,15 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             return
         }
     }
+    // MARK: - ARSessionDelegate
+
+    func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        lowestPlane = frame.anchors
+            .filter { anchor in anchor is ARPlaneAnchor }
+            .map { anchor in anchor as! ARPlaneAnchor }
+            .sorted { a, b in a.transform.columns.3.y < b.transform.columns.3.y }
+            .first
+    }
     
     // MARK: - ARSCNViewDelegate
     
@@ -217,7 +272,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
      return node
      }
      */
-    
+
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
         
