@@ -23,7 +23,7 @@ from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import axis_conversion
 
 UNITY2BLENDER = mathutils.Matrix.Scale(10, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
-FRAME_OFFSET = 17
+FRAME_OFFSET = 20
 
 IDENTITY_MATRIX = mathutils.Matrix.Identity(4)
 
@@ -51,8 +51,10 @@ def import_brenfile(context, filepath):
     camera_datas = camera_frames.get('datas') or []
 
     # Setup render settings
+    fps = 60
     if 'fps' in render_data:
-        context.scene.render.fps = render_data['fps']
+        fps = render_data['fps']
+        context.scene.render.fps = fps
     if 'video_resolution_x' in render_data:
         context.scene.render.resolution_x = render_data['video_resolution_x']
     if 'video_resolution_y' in render_data:
@@ -87,7 +89,8 @@ def import_brenfile(context, filepath):
 
     # Create camera animation
     rot = IDENTITY_MATRIX
-    for i, _timestamp in enumerate(camera_timestamps):
+    for _i, timestamp in enumerate(camera_timestamps):
+        i = int(math.floor(timestamp * fps))
         mat = mathutils.Matrix(camera_transforms[i])
         data = camera_datas[i]
         focal_length, sensor_height, orientation = data[1], data[2], data[6]

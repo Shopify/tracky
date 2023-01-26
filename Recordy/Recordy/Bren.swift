@@ -36,13 +36,31 @@ struct BrenCameraFrames: Codable {
     }
 }
 
+struct BrenPlane: Codable {
+    let transform: [[Float]]
+    let alignment: String
+    let width: Float
+    let height: Float
+    let rotationOnYAxis: Float
+    
+    init(transform: simd_float4x4, alignment: String, width: Float, height: Float, rotationOnYAxis: Float) {
+        self.transform = create_transform(transform: transform)
+        self.alignment = alignment
+        self.width = width
+        self.height = height
+        self.rotationOnYAxis = rotationOnYAxis
+    }
+}
+
 struct BrenWrapper: Codable {
     let render_data: BrenRenderData
     let camera_frames: BrenCameraFrames
+    let planes: [BrenPlane]
     
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames) {
+    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane]) {
         render_data = renderData
         camera_frames = cameraFrames
+        self.planes = planes
     }
 }
 

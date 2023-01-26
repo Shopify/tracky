@@ -34,7 +34,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var projectionMatrix = matrix_identity_float4x4
     var cameraTransforms: [simd_float4x4] = []
     var lensDatas: [BrenLensData] = []
-    var lowestPlane: ARPlaneAnchor? = nil
+    var planeAnchors: [ARPlaneAnchor] = []
+    var planeNodes: [SCNNode] = []
     
     let dateFormatter : DateFormatter = {
         let formatter = DateFormatter()
@@ -53,6 +54,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
+        sceneView.debugOptions = [.showBoundingBoxes]
         
         recordIndicator.isHidden = true
         
@@ -163,9 +165,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
         lensDatas.removeAll(keepingCapacity: true)
-        lowestPlane = nil
+        planeAnchors.removeAll(keepingCapacity: false)
+        planeNodes.removeAll(keepingCapacity: true)
         sessionInProgress = false
         assetWriter.startWriting()
+        assetWriter.startSession(atSourceTime: CMTime.zero)
         isRecording = true
     }
     
@@ -186,23 +190,24 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 if !sessionInProgress {
                     ctime = 0
                     recordStart = time
-                    assetWriter.startSession(atSourceTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600))
+                    //assetWriter.startSession(atSourceTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600))
                     sessionInProgress = true
                 } else {
                     ctime = time - recordStart
                 }
-                assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600))
-                timestamps.append(Float(ctime))
-                cameraTransforms.append(pov.simdTransform)
-                lensDatas.append(BrenLensData(
-                    fov: cam.fieldOfView,
-                    focalLength: cam.focalLength,
-                    sensorHeight: cam.sensorHeight,
-                    zNear: cam.zNear,
-                    zFar: cam.zFar,
-                    focusDistance: cam.focusDistance,
-                    orientation: UIDevice.current.orientation.rawValue
-                ))
+                if assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600)) {
+                    timestamps.append(Float(ctime))
+                    cameraTransforms.append(pov.simdTransform)
+                    lensDatas.append(BrenLensData(
+                        fov: cam.fieldOfView,
+                        focalLength: cam.focalLength,
+                        sensorHeight: cam.sensorHeight,
+                        zNear: cam.zNear,
+                        zFar: cam.zFar,
+                        focusDistance: cam.focusDistance,
+                        orientation: UIDevice.current.orientation.rawValue
+                    ))
+                }
             }
         }
     }
@@ -213,16 +218,16 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
-        var tfms: [simd_float4x4]
-        if let plane = lowestPlane {
+        var transforms: [simd_float4x4]
+        if let plane = planeAnchors.last {
             print("Doing plane transformation")
             let tmp = SCNNode()
             tmp.simdTransform = plane.transform
             sceneView.scene.rootNode.addChildNode(tmp) // Necessary?
-            tfms = cameraTransforms.map({ tfm in return tmp.simdConvertTransform(tfm, from: nil) })
+            transforms = cameraTransforms.map({ tfm in return tmp.simdConvertTransform(tfm, from: nil) })
             tmp.removeFromParentNode() // Necessary?
         } else {
-            tfms = cameraTransforms
+            transforms = cameraTransforms
         }
         
         let renderData = BrenRenderData(
@@ -232,8 +237,21 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             videoResolutionX: videoResolutionX,
             videoResolutionY: videoResolutionY
         )
-        let cameraFrames = BrenCameraFrames(timestamps: timestamps, transforms: tfms, datas: lensDatas)
-        let data = BrenWrapper(renderData, cameraFrames)
+        let cameraFrames = BrenCameraFrames(
+            timestamps: timestamps,
+            transforms: transforms,
+            datas: lensDatas
+        )
+        let planes = planeAnchors.map { planeAnchor in
+            return BrenPlane(
+                transform: planeAnchor.transform,
+                alignment: planeAnchor.alignment == .horizontal ? "horizontal" : "vertical",
+                width: planeAnchor.planeExtent.width,
+                height: planeAnchor.planeExtent.height,
+                rotationOnYAxis: planeAnchor.planeExtent.rotationOnYAxis
+            )
+        }
+        let data = BrenWrapper(renderData, cameraFrames, planes)
         let jsonEncoder = JSONEncoder()
         guard let jsonData = try? jsonEncoder.encode(data),
               let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
@@ -259,25 +277,61 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         assetWriter.finishWriting {
             print("Finished writing .mp4")
             self.writeBrenfile()
-            // TODO: Write out view matrices
-            // Handle finishing of writing here
             return
         }
     }
     // MARK: - ARSessionDelegate
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        lowestPlane = frame.anchors
+        planeAnchors = frame.anchors
             .filter { anchor in anchor is ARPlaneAnchor }
             .map { anchor in anchor as! ARPlaneAnchor }
-            .sorted { a, b in a.transform.columns.3.y < b.transform.columns.3.y }
-            .first
+            .sorted { a, b in a.transform.columns.3.y > b.transform.columns.3.y }
     }
     
     // MARK: - ARSCNViewDelegate
     
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
         updateRecording(renderer, time)
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        // Place content only for anchors found by plane detection.
+        guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
+        
+        // Create a custom object to visualize the plane geometry and extent.
+        let extentPlane: SCNPlane = SCNPlane(width: CGFloat(planeAnchor.planeExtent.width), height: CGFloat(planeAnchor.planeExtent.height))
+        extentPlane.materials = extentPlane.materials.map({ _m in
+            let material = SCNMaterial()
+            material.lightingModel = .constant
+            material.locksAmbientWithDiffuse = true
+            material.diffuse.contents = UIColor.init(white: CGFloat(1), alpha: CGFloat(0.1))
+            return material
+        })
+        let extentNode = SCNNode(geometry: extentPlane)
+        extentNode.simdPosition = planeAnchor.center
+        extentNode.eulerAngles.x = -.pi / 2
+        extentNode.eulerAngles.y = planeAnchor.planeExtent.rotationOnYAxis
+        
+        // Add the visualization to the ARKit-managed node so that it tracks
+        // changes in the plane anchor as plane estimation continues.
+        node.addChildNode(extentNode)
+        //planeNodes.append(extentNode)
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        // Update only anchors and nodes set up by `renderer(_:didAdd:for:)`.
+        guard let planeAnchor = anchor as? ARPlaneAnchor,
+            let extentNode = node.childNodes.first
+            else { return }
+
+        // Update extent visualization to the anchor's new bounding rectangle.
+        if let extentGeometry = extentNode.geometry as? SCNPlane {
+            extentGeometry.width = CGFloat(planeAnchor.planeExtent.width)
+            extentGeometry.height = CGFloat(planeAnchor.planeExtent.height)
+            extentNode.simdPosition = planeAnchor.center
+            extentNode.eulerAngles.y = planeAnchor.planeExtent.rotationOnYAxis
+        }
     }
     
     /*
