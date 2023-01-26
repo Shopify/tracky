@@ -66,7 +66,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
-        configuration.planeDetection = [.horizontal]
+        configuration.planeDetection = [.horizontal, .vertical]
         configuration.isAutoFocusEnabled = true
         configuration.sceneReconstruction = .meshWithClassification
         configuration.environmentTexturing = .automatic
@@ -219,6 +219,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         var transforms: [simd_float4x4]
+        /*
         if let plane = planeAnchors.last {
             print("Doing plane transformation")
             let tmp = SCNNode()
@@ -229,6 +230,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         } else {
             transforms = cameraTransforms
         }
+        */
+        transforms = cameraTransforms
         
         let renderData = BrenRenderData(
             fps: fps,
