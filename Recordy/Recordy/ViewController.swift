@@ -19,14 +19,17 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor!
     var wantsRecording = false
     var isRecording = false
+    var sessionInProgress = false
     var recordStart: TimeInterval = 0
-
+    
     var recordingDir: URL? = nil
     
     var fps: UInt = 60
-    var resolutionX: UInt = 1
-    var resolutionY: UInt = 1
-
+    var viewResolutionX: UInt = 1
+    var viewResolutionY: UInt = 1
+    var videoResolutionX: UInt = 1
+    var videoResolutionY: UInt = 1
+    
     var timestamps: [Float] = []
     var projectionMatrix = matrix_identity_float4x4
     var cameraTransforms: [simd_float4x4] = []
@@ -51,7 +54,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
         
-        setWantsRecording()
         recordIndicator.isHidden = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
@@ -102,14 +104,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if fps == 0 {
             fps = 60 // idk
         }
-        resolutionX = UInt(siz.width * scl)
-        resolutionY = UInt(siz.height * scl)
+        viewResolutionX = UInt(siz.width * scl)
+        viewResolutionY = UInt(siz.height * scl)
         
         wantsRecording = true
     }
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
-        print("Starting recording")
         DispatchQueue.main.async {
             self.recordIndicator.isHidden = false
         }
@@ -123,14 +124,15 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         let width = CVPixelBufferGetWidthOfPlane(capturedImage, 0)
         let height = CVPixelBufferGetHeightOfPlane(capturedImage, 0)
-        print("Width: \(width) x Height: \(height)")
+        videoResolutionX = UInt(width)
+        videoResolutionY = UInt(height)
+        print("Video Width: \(width) x Height: \(height)")
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
         }
         let dirname = dateFormatter.string(from: Date.now)
         let recDir = URL(fileURLWithPath: dirname, isDirectory: true, relativeTo: documentsPath)
-        print("REC DIR: \(recDir)")
         do {
             try FileManager.default.createDirectory(at: recDir, withIntermediateDirectories: true)
         } catch {
@@ -150,7 +152,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         ] as [String : Any]
         let assetWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: outputSettings)
         assetWriterInput.expectsMediaDataInRealTime = true
-        assetWriterInput.transform = .init(rotationAngle: .pi/2)
         assetWriter.add(assetWriterInput)
         let pixelBufferAttributes: [String: Any] = [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
@@ -158,13 +159,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             kCVPixelBufferHeightKey as String: height
         ]
         assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterInput, sourcePixelBufferAttributes: pixelBufferAttributes)
-        assetWriter.startWriting()
         projectionMatrix = simd_float4x4(projectionTransform)
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
         lensDatas.removeAll(keepingCapacity: true)
         lowestPlane = nil
-        recordStart = time
+        sessionInProgress = false
+        assetWriter.startWriting()
         isRecording = true
     }
     
@@ -174,17 +175,24 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
               let cam = pov.camera else {
             return
         }
-        let ptime = CMTimeMakeWithSeconds(time, preferredTimescale: 600)
         let hasCapturedImage = sceneView.session.currentFrame?.capturedImage != nil
         if wantsRecording && hasCapturedImage {
             wantsRecording = false
             startRecording(renderer, frame, time)
-            assetWriter.startSession(atSourceTime: ptime)
         }
         if isRecording {
             if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
-                assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: ptime)
-                timestamps.append(Float(time))
+                let ctime: TimeInterval
+                if !sessionInProgress {
+                    ctime = 0
+                    recordStart = time
+                    assetWriter.startSession(atSourceTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600))
+                    sessionInProgress = true
+                } else {
+                    ctime = time - recordStart
+                }
+                assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600))
+                timestamps.append(Float(ctime))
                 cameraTransforms.append(pov.simdTransform)
                 lensDatas.append(BrenLensData(
                     fov: cam.fieldOfView,
@@ -192,7 +200,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                     sensorHeight: cam.sensorHeight,
                     zNear: cam.zNear,
                     zFar: cam.zFar,
-                    focusDistance: cam.focusDistance
+                    focusDistance: cam.focusDistance,
+                    orientation: UIDevice.current.orientation.rawValue
                 ))
             }
         }
@@ -203,7 +212,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("ERROR: Cannot save brenfile with nil recordingDir")
             return
         }
-
+        
         var tfms: [simd_float4x4]
         if let plane = lowestPlane {
             print("Doing plane transformation")
@@ -215,8 +224,14 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         } else {
             tfms = cameraTransforms
         }
-
-        let renderData = BrenRenderData(fps: fps, resolutionX: resolutionX, resolutionY: resolutionY)
+        
+        let renderData = BrenRenderData(
+            fps: fps,
+            viewResolutionX: viewResolutionX,
+            viewResolutionY: viewResolutionY,
+            videoResolutionX: videoResolutionX,
+            videoResolutionY: videoResolutionY
+        )
         let cameraFrames = BrenCameraFrames(timestamps: timestamps, transforms: tfms, datas: lensDatas)
         let data = BrenWrapper(renderData, cameraFrames)
         let jsonEncoder = JSONEncoder()
@@ -225,7 +240,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("ERROR: Could not encode json data")
             return
         }
-
+        
         let outputURL = URL(fileURLWithPath: "camera.bren", relativeTo: recordDir)
         do {
             try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
@@ -240,6 +255,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self.recordIndicator.isHidden = true
         }
         isRecording = false
+        sessionInProgress = false
         assetWriter.finishWriting {
             print("Finished writing .mp4")
             self.writeBrenfile()
@@ -249,7 +265,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
     // MARK: - ARSessionDelegate
-
+    
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         lowestPlane = frame.anchors
             .filter { anchor in anchor is ARPlaneAnchor }
@@ -272,7 +288,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
      return node
      }
      */
-
+    
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
         

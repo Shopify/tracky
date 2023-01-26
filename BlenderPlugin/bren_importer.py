@@ -10,10 +10,11 @@ bl_info = {
 }
 
 import os
-import bpy
 import math
-import mathutils
 import json
+
+import bpy
+import mathutils
 
 from bpy.props import StringProperty
 from bpy.types import Operator
@@ -21,8 +22,21 @@ from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import axis_conversion
 
-CONVERSION_MATRIX = axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
-DEG2RAD = math.pi / 180
+UNITY2BLENDER = mathutils.Matrix.Scale(10, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
+FRAME_OFFSET = 17
+
+IDENTITY_MATRIX = mathutils.Matrix.Identity(4)
+
+RAD_PORTRAIT = math.radians(-90)
+RAD_PORTRAIT_UPSIDE_DOWN = math.radians(90)
+RAD_LANDSCAPE_LEFT = math.radians(0)
+RAD_LANDSCAPE_RIGHT = math.radians(180)
+
+ROTATE_PORTRAIT = mathutils.Matrix.Rotation(RAD_PORTRAIT, 4, 'Z')
+ROTATE_PORTRAIT_UPSIDE_DOWN = mathutils.Matrix.Rotation(RAD_PORTRAIT_UPSIDE_DOWN, 4, 'Z')
+ROTATE_LANDSCAPE_LEFT = mathutils.Matrix.Rotation(RAD_LANDSCAPE_LEFT, 4, 'Z')
+ROTATE_LANDSCAPE_RIGHT = mathutils.Matrix.Rotation(RAD_LANDSCAPE_RIGHT, 4, 'Z')
+
 
 def import_brenfile(context, filepath):
     # Parse json data
@@ -39,18 +53,17 @@ def import_brenfile(context, filepath):
     # Setup render settings
     if 'fps' in render_data:
         context.scene.render.fps = render_data['fps']
-    if 'resolution_x' in render_data:
-        context.scene.render.resolution_x = render_data['resolution_x']
-    if 'resolution_y' in render_data:
-        context.scene.render.resolution_y = render_data['resolution_y']
+    if 'video_resolution_x' in render_data:
+        context.scene.render.resolution_x = render_data['video_resolution_x']
+    if 'video_resolution_y' in render_data:
+        context.scene.render.resolution_y = render_data['video_resolution_y']
 
     # Setup scene settings
-    context.scene.frame_end = len(camera_timestamps)
+    context.scene.frame_end = len(camera_timestamps) + FRAME_OFFSET
 
     # Create camera
     bpy.ops.object.camera_add(enter_editmode=False)
     cam = context.active_object
-    cam.data.display_size = 0.2
     cam.data.sensor_fit = 'VERTICAL'
     cam.data.lens_unit = 'MILLIMETERS'
     cam.name = 'ARCamera'
@@ -60,9 +73,7 @@ def import_brenfile(context, filepath):
     background = cam.data.background_images.new()
     background.source = 'MOVIE_CLIP'
     background.clip = bpy.data.movieclips.load(filepath=video_filepath)
-    background.frame_method = 'CROP'
-    background.rotation = 90 * DEG2RAD
-    background.scale = 0.75
+    background.frame_method = 'STRETCH'
     background.show_background_image = True
     cam.data.show_background_images = True
 
@@ -75,18 +86,34 @@ def import_brenfile(context, filepath):
                     space.region_3d.view_perspective = 'CAMERA'
 
     # Create camera animation
+    rot = IDENTITY_MATRIX
     for i, _timestamp in enumerate(camera_timestamps):
         mat = mathutils.Matrix(camera_transforms[i])
         data = camera_datas[i]
-        focal_length, sensor_height = data[1], data[2]
+        focal_length, sensor_height, orientation = data[1], data[2], data[6]
+        frameidx = i + FRAME_OFFSET
 
-        context.scene.frame_set(i)
+        context.scene.frame_set(frameidx)
+
         cam.data.lens = focal_length
         cam.data.sensor_height = sensor_height
-        cam.data.keyframe_insert('lens', frame=i)
-        cam.matrix_world = CONVERSION_MATRIX @ mat
+        assert cam.data.keyframe_insert('lens', frame=frameidx), 'Could not insert lens keyframe'
+        assert cam.data.keyframe_insert('sensor_height', frame=frameidx), 'Could not insert sensor_height keyframe'
+
+        if orientation == 1:
+            rot = ROTATE_PORTRAIT
+        elif orientation == 2:
+            rot = ROTATE_PORTRAIT_UPSIDE_DOWN
+        elif orientation == 3:
+            rot = ROTATE_LANDSCAPE_LEFT
+        elif orientation == 4:
+            rot = ROTATE_LANDSCAPE_RIGHT
+        cam.matrix_world = UNITY2BLENDER @ (mat @ rot)
+
+        # Note that we only save the loc and rot keyframes, but it does apply the scale to the camera
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')
 
+    # Rewind back to the first frame
     context.scene.frame_set(0)
 
     return {'FINISHED'}
