@@ -41,14 +41,14 @@ struct BrenPlane: Codable {
     let alignment: String
     let width: Float
     let height: Float
-    let rotationOnYAxis: Float
+    let rotation_on_y_axis: Float
     
     init(transform: simd_float4x4, alignment: String, width: Float, height: Float, rotationOnYAxis: Float) {
         self.transform = create_transform(transform: transform)
         self.alignment = alignment
         self.width = width
         self.height = height
-        self.rotationOnYAxis = rotationOnYAxis
+        self.rotation_on_y_axis = rotationOnYAxis
     }
 }
 

@@ -49,6 +49,7 @@ def import_brenfile(context, filepath):
     camera_timestamps = camera_frames.get('timestamps') or []
     camera_transforms = camera_frames.get('transforms') or []
     camera_datas = camera_frames.get('datas') or []
+    planes = data.get('planes') or []
 
     # Setup render settings
     fps = 60
@@ -91,8 +92,11 @@ def import_brenfile(context, filepath):
     rot = IDENTITY_MATRIX
     for _i, timestamp in enumerate(camera_timestamps):
         i = int(math.floor(timestamp * fps))
-        mat = mathutils.Matrix(camera_transforms[i])
-        data = camera_datas[i]
+        try:
+            mat = mathutils.Matrix(camera_transforms[i])
+            data = camera_datas[i]
+        except IndexError:
+            continue
         focal_length, sensor_height, orientation = data[1], data[2], data[6]
         frameidx = i + FRAME_OFFSET
 
@@ -118,6 +122,22 @@ def import_brenfile(context, filepath):
 
     # Rewind back to the first frame
     context.scene.frame_set(0)
+
+    # Add planes
+    for plane_index, plane in enumerate(planes):
+        bpy.ops.mesh.primitive_plane_add(size=1.0, calc_uvs=True, enter_editmode=False, align='WORLD')
+        plane_obj = context.object
+        plane_obj.name = 'Plane.Mesh.%d' % (plane_index + 1,)
+        #plane_obj.rotation_euler = [math.radians(-90), plane['rotation_on_y_axis'], 0]
+        plane_obj.rotation_euler = [0, 0, plane['rotation_on_y_axis']]
+        plane_obj.scale = [plane['width'], plane['height'], 1]
+        bpy.ops.object.add()
+        plane_parent_obj = context.object
+        plane_obj.parent = plane_parent_obj
+        plane_parent_obj.name = 'Plane.%d' % (plane_index + 1,)
+        plane_parent_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
+        plane_parent_obj.rotation_euler = [0, 0, 0]
+        #plane_parent_obj.scale = [1, 1, 1]
 
     return {'FINISHED'}
     
