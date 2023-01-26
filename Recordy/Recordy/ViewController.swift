@@ -13,7 +13,8 @@ import ARKit
 
 class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
-    @IBOutlet var recordIndicator: UIView!
+    @IBOutlet var recordButton: UIButton!
+    @IBOutlet var recordingButton: UIButton!
     
     var assetWriter: AVAssetWriter!
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor!
@@ -55,10 +56,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
         sceneView.debugOptions = [.showBoundingBoxes]
-        
-        recordIndicator.isHidden = true
-        
-        view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+
+        recordButton.isHidden = false
+        recordingButton.isHidden = true
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -85,9 +85,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.session.pause()
     }
     
-    // MARK: - UITapGestureRecognizer
+    // Button handler
     
-    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+    @IBAction @objc func handleMainButtonTap() {
+        recordButton.isHidden = !isRecording
+        recordingButton.isHidden = isRecording
         if isRecording {
             stopRecording()
         } else {
@@ -113,9 +115,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
-        DispatchQueue.main.async {
-            self.recordIndicator.isHidden = false
-        }
         guard let capturedImage = sceneView.session.currentFrame?.capturedImage else {
             print("ERROR: Could not start recording when ARFrame has no captured image")
             return
@@ -272,9 +271,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func stopRecording() {
-        DispatchQueue.main.async {
-            self.recordIndicator.isHidden = true
-        }
         isRecording = false
         sessionInProgress = false
         assetWriter.finishWriting {

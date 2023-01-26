@@ -19,34 +19,51 @@
                             <arscnView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="BrB-h1-WRS">
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="818"/>
                             </arscnView>
-                            <view clipsSubviews="YES" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="XRp-9x-td3">
-                                <rect key="frame" x="350" y="47" width="20" height="20"/>
-                                <color key="backgroundColor" systemColor="systemRedColor"/>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="kQw-HA-47T" userLabel="RecordButton">
+                                <rect key="frame" x="164.66666666666666" y="722" width="64" height="64"/>
                                 <constraints>
-                                    <constraint firstAttribute="height" constant="20" id="GbV-H5-Waw"/>
-                                    <constraint firstAttribute="width" constant="20" id="RLP-W5-j91"/>
+                                    <constraint firstAttribute="height" constant="64" id="Dfj-nU-AHF"/>
+                                    <constraint firstAttribute="width" constant="64" id="mUB-Cw-FFZ"/>
                                 </constraints>
-                                <userDefinedRuntimeAttributes>
-                                    <userDefinedRuntimeAttribute type="boolean" keyPath="layer.masksToBounds" value="YES"/>
-                                    <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
-                                        <integer key="value" value="10"/>
-                                    </userDefinedRuntimeAttribute>
-                                </userDefinedRuntimeAttributes>
-                            </view>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="">
+                                    <backgroundConfiguration key="background" image="RecordButton_Waiting"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="handleMainButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="Gps-oc-MtB"/>
+                                </connections>
+                            </button>
+                            <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="dUK-vX-tLS" userLabel="RecordingButton">
+                                <rect key="frame" x="164.66666666666666" y="722" width="64" height="64"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="64" id="BV0-EB-TDU"/>
+                                    <constraint firstAttribute="width" constant="64" id="LC9-e0-X16"/>
+                                </constraints>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="">
+                                    <backgroundConfiguration key="background" image="RecordButton_Recording"/>
+                                </buttonConfiguration>
+                                <connections>
+                                    <action selector="handleMainButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="oTN-zT-QEa"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
-                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="top" secondItem="XRp-9x-td3" secondAttribute="top" constant="12" id="Ea3-4K-lCd"/>
+                            <constraint firstItem="dUK-vX-tLS" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="0cV-r9-AKT"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" id="GsS-dJ-CKf"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="VpT-BR-CcM"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="trailing" secondItem="fQZ-KI-GVf" secondAttribute="trailing" id="XyZ-9z-H8e"/>
-                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="XRp-9x-td3" secondAttribute="trailing" constant="23" id="YIU-Fy-dnh"/>
+                            <constraint firstItem="kQw-HA-47T" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="aSe-IL-ETQ"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="dUK-vX-tLS" secondAttribute="bottom" constant="32" id="hYV-pt-YYN"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="kQw-HA-47T" secondAttribute="bottom" constant="32" id="oRh-Kd-hub"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="top" secondItem="U0K-SW-4ec" secondAttribute="top" id="rJc-2c-zQA"/>
                         </constraints>
                     </view>
                     <connections>
-                        <outlet property="recordIndicator" destination="XRp-9x-td3" id="ttL-3j-cJr"/>
+                        <outlet property="recordButton" destination="kQw-HA-47T" id="0Fb-PR-csr"/>
+                        <outlet property="recordingButton" destination="dUK-vX-tLS" id="3DN-Am-C2r"/>
                         <outlet property="sceneView" destination="BrB-h1-WRS" id="5nT-qQ-ynl"/>
                     </connections>
                 </viewController>
@@ -56,11 +73,10 @@
         </scene>
     </scenes>
     <resources>
+        <image name="RecordButton_Recording" width="256" height="256"/>
+        <image name="RecordButton_Waiting" width="256" height="256"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
-        <systemColor name="systemRedColor">
-            <color red="1" green="0.23137254901960785" blue="0.18823529411764706" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
     </resources>
 </document>
