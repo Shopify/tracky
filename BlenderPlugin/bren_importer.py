@@ -22,8 +22,8 @@ from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import axis_conversion
 
-UNITY2BLENDER = mathutils.Matrix.Scale(100, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
-#UNITY2BLENDER = axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
+UNITY_SCALE_MULTIPLIER = 100
+UNITY2BLENDER = mathutils.Matrix.Scale(UNITY_SCALE_MULTIPLIER, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
 FRAME_OFFSET = 0
 
 IDENTITY_MATRIX = mathutils.Matrix.Identity(4)
@@ -129,7 +129,6 @@ def import_brenfile(context, filepath):
         bpy.ops.mesh.primitive_plane_add(size=1.0, calc_uvs=True, enter_editmode=False, align='WORLD')
         plane_obj = context.object
         plane_obj.name = 'Plane.Mesh.%d' % (plane_index + 1,)
-        #plane_obj.rotation_euler = [math.radians(-90), plane['rotation_on_y_axis'], 0]
         plane_obj.rotation_euler = [math.radians(90) if plane['alignment'] == 'vertical' else 0, 0, plane['rotation_on_y_axis']]
         plane_obj.scale = [plane['width'], plane['height'], 1]
         bpy.ops.object.add()
@@ -138,7 +137,7 @@ def import_brenfile(context, filepath):
         plane_parent_obj.name = 'Plane.%s.%d' % (plane['alignment'].capitalize(), plane_index + 1)
         plane_parent_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
         plane_parent_obj.rotation_euler = [0, 0, 0]
-        plane_parent_obj.scale = [100, 100, 100]
+        plane_parent_obj.scale = [UNITY_SCALE_MULTIPLIER, UNITY_SCALE_MULTIPLIER, UNITY_SCALE_MULTIPLIER]
 
     return {'FINISHED'}
     
