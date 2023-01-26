@@ -24,7 +24,7 @@ from bpy_extras.io_utils import axis_conversion
 
 UNITY2BLENDER = mathutils.Matrix.Scale(100, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
 #UNITY2BLENDER = axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
-FRAME_OFFSET = 20
+FRAME_OFFSET = 0
 
 IDENTITY_MATRIX = mathutils.Matrix.Identity(4)
 
