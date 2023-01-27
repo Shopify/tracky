@@ -39,16 +39,10 @@ struct BrenCameraFrames: Codable {
 struct BrenPlane: Codable {
     let transform: [[Float]]
     let alignment: String
-    let width: Float
-    let height: Float
-    let rotation_on_y_axis: Float
     
-    init(transform: simd_float4x4, alignment: String, width: Float, height: Float, rotationOnYAxis: Float) {
+    init(transform: simd_float4x4, alignment: String) {
         self.transform = create_transform(transform: transform)
         self.alignment = alignment
-        self.width = width
-        self.height = height
-        self.rotation_on_y_axis = rotationOnYAxis
     }
 }
 
@@ -56,11 +50,13 @@ struct BrenWrapper: Codable {
     let render_data: BrenRenderData
     let camera_frames: BrenCameraFrames
     let planes: [BrenPlane]
+    let tracked_transforms: [[[Float]]]
     
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane]) {
+    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane], _ trackedTransforms: [simd_float4x4]) {
         render_data = renderData
         camera_frames = cameraFrames
         self.planes = planes
+        tracked_transforms = trackedTransforms.map(create_transform)
     }
 }
 

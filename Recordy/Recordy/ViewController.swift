@@ -35,8 +35,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var projectionMatrix = matrix_identity_float4x4
     var cameraTransforms: [simd_float4x4] = []
     var lensDatas: [BrenLensData] = []
-    var planeAnchors: [ARPlaneAnchor] = []
-    var planeNodes: [SCNNode] = []
+    var horizontalPlaneNodes: [SCNNode] = []
+    var verticalPlaneNodes: [SCNNode] = []
+    let trackedNodeBitmask: Int = 1 << 6
+    var trackedNodes: [SCNNode] = []
     
     let dateFormatter : DateFormatter = {
         let formatter = DateFormatter()
@@ -59,10 +61,19 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         recordButton.isHidden = false
         recordingButton.isHidden = true
+        
+        view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
     }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        
+        // Remove any existing tracked AR stuff
+        trackedNodes.forEach { $0.removeFromParentNode() }
+        trackedNodes.removeAll(keepingCapacity: true)
+        //planeAnchors.removeAll(keepingCapacity: true)
+        horizontalPlaneNodes.removeAll(keepingCapacity: true)
+        verticalPlaneNodes.removeAll(keepingCapacity: true)
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
@@ -83,6 +94,43 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Pause the view's session
         sceneView.session.pause()
+    }
+    
+    // MARK: - UITapGestureRecognizer
+    
+    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+        let loc = gesture.location(in: sceneView)
+        
+        // First, see if it hits anything in the scene
+        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask]).first,
+           let idx = trackedNodes.firstIndex(of: hitResult.node) {
+            trackedNodes.remove(at: idx)
+            hitResult.node.removeFromParentNode()
+            return
+        }
+        
+        // Otherwise, raycast out into the real world and place a new tracked node there
+        guard let query = sceneView.raycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any) else {
+            // In a production app we should provide feedback to the user here
+            print("Couldn't create a query!")
+            return
+        }
+        guard let result = sceneView.session.raycast(query).first else {
+            print("Couldn't match the raycast with a plane.")
+            return
+        }
+
+        let mat = SCNMaterial()
+        mat.lightingModel = .constant
+        mat.locksAmbientWithDiffuse = true
+        mat.diffuse.contents = UIColor.gray
+        let geom = SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0)
+        geom.materials = geom.materials.map({ _ in return  mat })
+        let node = SCNNode(geometry: geom)
+        node.categoryBitMask = trackedNodeBitmask
+        sceneView.scene.rootNode.addChildNode(node)
+        node.simdTransform = result.worldTransform
+        trackedNodes.append(node)
     }
     
     // Button handler
@@ -164,8 +212,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
         lensDatas.removeAll(keepingCapacity: true)
-        planeAnchors.removeAll(keepingCapacity: false)
-        planeNodes.removeAll(keepingCapacity: true)
+        //planeAnchors.removeAll(keepingCapacity: false)
         sessionInProgress = false
         assetWriter.startWriting()
         assetWriter.startSession(atSourceTime: CMTime.zero)
@@ -211,26 +258,28 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
     
+    private func gatherBrenPlanes() -> [BrenPlane] {
+        var planes: [BrenPlane] = []
+        for extentNode in horizontalPlaneNodes {
+            planes.append(BrenPlane(
+                transform: extentNode.simdWorldTransform,
+                alignment: "horizontal"
+            ))
+        }
+        for extentNode in verticalPlaneNodes {
+            planes.append(BrenPlane(
+                transform: extentNode.simdWorldTransform,
+                alignment: "vertical"
+            ))
+        }
+        return planes
+    }
+    
     func writeBrenfile() {
         guard let recordDir = recordingDir else {
             print("ERROR: Cannot save brenfile with nil recordingDir")
             return
         }
-        
-        var transforms: [simd_float4x4]
-        /*
-        if let plane = planeAnchors.last {
-            print("Doing plane transformation")
-            let tmp = SCNNode()
-            tmp.simdTransform = plane.transform
-            sceneView.scene.rootNode.addChildNode(tmp) // Necessary?
-            transforms = cameraTransforms.map({ tfm in return tmp.simdConvertTransform(tfm, from: nil) })
-            tmp.removeFromParentNode() // Necessary?
-        } else {
-            transforms = cameraTransforms
-        }
-        */
-        transforms = cameraTransforms
         
         let renderData = BrenRenderData(
             fps: fps,
@@ -241,19 +290,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         )
         let cameraFrames = BrenCameraFrames(
             timestamps: timestamps,
-            transforms: transforms,
+            transforms: cameraTransforms,
             datas: lensDatas
         )
-        let planes = planeAnchors.map { planeAnchor in
-            return BrenPlane(
-                transform: planeAnchor.transform,
-                alignment: planeAnchor.alignment == .horizontal ? "horizontal" : "vertical",
-                width: planeAnchor.planeExtent.width,
-                height: planeAnchor.planeExtent.height,
-                rotationOnYAxis: planeAnchor.planeExtent.rotationOnYAxis
-            )
-        }
-        let data = BrenWrapper(renderData, cameraFrames, planes)
+        let planes = gatherBrenPlanes()
+        let trackedTransforms = trackedNodes.map { $0.simdTransform }
+        let data = BrenWrapper(renderData, cameraFrames, planes, trackedTransforms)
         let jsonEncoder = JSONEncoder()
         guard let jsonData = try? jsonEncoder.encode(data),
               let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
@@ -282,10 +324,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // MARK: - ARSessionDelegate
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        planeAnchors = frame.anchors
-            .filter { anchor in anchor is ARPlaneAnchor }
-            .map { anchor in anchor as! ARPlaneAnchor }
-            .sorted { a, b in a.transform.columns.3.y > b.transform.columns.3.y }
     }
     
     // MARK: - ARSCNViewDelegate
@@ -295,11 +333,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
-        // Place content only for anchors found by plane detection.
         guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
         
-        // Create a custom object to visualize the plane geometry and extent.
-        let extentPlane: SCNPlane = SCNPlane(width: CGFloat(planeAnchor.planeExtent.width), height: CGFloat(planeAnchor.planeExtent.height))
+        let extentPlane: SCNPlane = SCNPlane(width: 1, height: 1)
         extentPlane.materials = extentPlane.materials.map({ _m in
             let material = SCNMaterial()
             material.lightingModel = .constant
@@ -311,36 +347,30 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         extentNode.simdPosition = planeAnchor.center
         extentNode.eulerAngles.x = -.pi / 2
         extentNode.eulerAngles.y = planeAnchor.planeExtent.rotationOnYAxis
+        extentNode.simdScale.x = planeAnchor.planeExtent.width
+        extentNode.simdScale.y = planeAnchor.planeExtent.height
         
         // Add the visualization to the ARKit-managed node so that it tracks
         // changes in the plane anchor as plane estimation continues.
         node.addChildNode(extentNode)
-        //planeNodes.append(extentNode)
-    }
-    
-    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
-        // Update only anchors and nodes set up by `renderer(_:didAdd:for:)`.
-        guard let planeAnchor = anchor as? ARPlaneAnchor,
-            let extentNode = node.childNodes.first
-            else { return }
-
-        // Update extent visualization to the anchor's new bounding rectangle.
-        if let extentGeometry = extentNode.geometry as? SCNPlane {
-            extentGeometry.width = CGFloat(planeAnchor.planeExtent.width)
-            extentGeometry.height = CGFloat(planeAnchor.planeExtent.height)
-            extentNode.simdPosition = planeAnchor.center
-            extentNode.eulerAngles.y = planeAnchor.planeExtent.rotationOnYAxis
+        
+        if planeAnchor.alignment == .vertical {
+            verticalPlaneNodes.append(extentNode)
+        } else {
+            horizontalPlaneNodes.append(extentNode)
         }
     }
     
-    /*
-     // Override to create and configure nodes for anchors added to the view's session.
-     func renderer(_ renderer: SCNSceneRenderer, nodeFor anchor: ARAnchor) -> SCNNode? {
-     let node = SCNNode()
-     
-     return node
-     }
-     */
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        guard let planeAnchor = anchor as? ARPlaneAnchor,
+            let extentNode = node.childNodes.first
+            else { return }
+        
+        extentNode.simdPosition = planeAnchor.center
+        extentNode.eulerAngles.y = planeAnchor.planeExtent.rotationOnYAxis
+        extentNode.simdScale.x = planeAnchor.planeExtent.width
+        extentNode.simdScale.y = planeAnchor.planeExtent.height
+    }
     
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user

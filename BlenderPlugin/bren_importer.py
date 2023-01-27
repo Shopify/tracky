@@ -51,6 +51,7 @@ def import_brenfile(context, filepath):
     camera_transforms = camera_frames.get('transforms') or []
     camera_datas = camera_frames.get('datas') or []
     planes = data.get('planes') or []
+    tracked_transforms = data.get('tracked_transforms') or []
 
     # Setup render settings
     fps = 60
@@ -129,15 +130,14 @@ def import_brenfile(context, filepath):
         bpy.ops.mesh.primitive_plane_add(size=1.0, calc_uvs=True, enter_editmode=False, align='WORLD')
         plane_obj = context.object
         plane_obj.name = 'Plane.Mesh.%d' % (plane_index + 1,)
-        plane_obj.rotation_euler = [math.radians(90) if plane['alignment'] == 'vertical' else 0, 0, plane['rotation_on_y_axis']]
-        plane_obj.scale = [plane['width'], plane['height'], 1]
+        plane_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
+    
+    # Add tracked transforms
+    for track_index, tfm in enumerate(tracked_transforms):
         bpy.ops.object.add()
-        plane_parent_obj = context.object
-        plane_obj.parent = plane_parent_obj
-        plane_parent_obj.name = 'Plane.%s.%d' % (plane['alignment'].capitalize(), plane_index + 1)
-        plane_parent_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
-        plane_parent_obj.rotation_euler = [0, 0, 0]
-        plane_parent_obj.scale = [UNITY_SCALE_MULTIPLIER, UNITY_SCALE_MULTIPLIER, UNITY_SCALE_MULTIPLIER]
+        tracked_obj = context.object
+        tracked_obj.name = 'Tracked.Transform.%d' % (track_index + 1,)
+        tracked_obj.matrix_world = UNITY2BLENDER @ mathutils.Matrix(tfm)
 
     return {'FINISHED'}
     
