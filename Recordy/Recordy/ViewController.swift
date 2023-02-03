@@ -16,8 +16,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
     
-    var assetWriter: AVAssetWriter!
-    var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor!
     var wantsRecording = false
     var isRecording = false
     var sessionInProgress = false
@@ -28,8 +26,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var fps: UInt = 60
     var viewResolutionX: UInt = 1
     var viewResolutionY: UInt = 1
-    var videoResolutionX: UInt = 1
-    var videoResolutionY: UInt = 1
+    var videoSessionRGB: VideoSession? = nil
+    var videoSessionDepth: VideoSession? = nil
     
     var timestamps: [Float] = []
     var projectionMatrix = matrix_identity_float4x4
@@ -83,6 +81,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         configuration.environmentTexturing = .automatic
         configuration.isLightEstimationEnabled = true
         configuration.videoHDRAllowed = false
+        configuration.frameSemantics.insert(.sceneDepth)
+        configuration.frameSemantics.insert(.personSegmentationWithDepth)
         
         // Run the view's session
         sceneView.session.run(configuration)
@@ -163,19 +163,14 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
-        guard let capturedImage = sceneView.session.currentFrame?.capturedImage else {
-            print("ERROR: Could not start recording when ARFrame has no captured image")
-            return
-        }
         guard let projectionTransform = renderer.pointOfView?.camera?.projectionTransform else {
             print("ERROR: Could not get renderer pov camera")
             return
         }
-        let width = CVPixelBufferGetWidthOfPlane(capturedImage, 0)
-        let height = CVPixelBufferGetHeightOfPlane(capturedImage, 0)
-        videoResolutionX = UInt(width)
-        videoResolutionY = UInt(height)
-        print("Video Width: \(width) x Height: \(height)")
+        guard let sceneDepth = frame.sceneDepth?.depthMap else {
+            print("ERROR: Could not start recording when ARFrame has no estimated depth data")
+            return
+        }
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
@@ -193,67 +188,50 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if FileManager.default.fileExists(atPath: outputURL.path) {
             try? FileManager.default.removeItem(at: outputURL)
         }
-        assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: AVFileType.mp4)
-        let outputSettings = [
-            AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: width,
-            AVVideoHeightKey: height,
-        ] as [String : Any]
-        let assetWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: outputSettings)
-        assetWriterInput.expectsMediaDataInRealTime = true
-        assetWriter.add(assetWriterInput)
-        let pixelBufferAttributes: [String: Any] = [
-            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
-            kCVPixelBufferWidthKey as String: width,
-            kCVPixelBufferHeightKey as String: height
-        ]
-        assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterInput, sourcePixelBufferAttributes: pixelBufferAttributes)
+        let outputURLDepth = URL(fileURLWithPath: "depth.mov", relativeTo: recDir)
+        if FileManager.default.fileExists(atPath: outputURLDepth.path) {
+            try? FileManager.default.removeItem(at: outputURLDepth)
+        }
+        videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage, outputURL: outputURL, startTime: time, fps: fps, depth: false)
+        videoSessionDepth = VideoSession(pixelBuffer: sceneDepth, outputURL: outputURLDepth, startTime: time, fps: fps, depth: true)
         projectionMatrix = simd_float4x4(projectionTransform)
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
         lensDatas.removeAll(keepingCapacity: true)
         //planeAnchors.removeAll(keepingCapacity: false)
+        recordStart = time
         sessionInProgress = false
-        assetWriter.startWriting()
-        assetWriter.startSession(atSourceTime: CMTime.zero)
+
         isRecording = true
     }
     
     func updateRecording(_ renderer: SCNSceneRenderer, _ time: TimeInterval) {
         guard let frame = sceneView.session.currentFrame,
               let pov = renderer.pointOfView,
-              let cam = pov.camera else {
+              let cam = pov.camera,
+              let _ = frame.estimatedDepthData else {
             return
         }
-        let hasCapturedImage = sceneView.session.currentFrame?.capturedImage != nil
-        if wantsRecording && hasCapturedImage {
+        
+        if wantsRecording {
             wantsRecording = false
             startRecording(renderer, frame, time)
         }
         if isRecording {
-            if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
-                let ctime: TimeInterval
-                if !sessionInProgress {
-                    ctime = 0
-                    recordStart = time
-                    //assetWriter.startSession(atSourceTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600))
-                    sessionInProgress = true
-                } else {
-                    ctime = time - recordStart
-                }
-                if assetWriterPixelBufferInput.append(frame.capturedImage, withPresentationTime: CMTimeMakeWithSeconds(ctime, preferredTimescale: 600)) {
-                    timestamps.append(Float(ctime))
-                    cameraTransforms.append(pov.simdTransform)
-                    lensDatas.append(BrenLensData(
-                        fov: cam.fieldOfView,
-                        focalLength: cam.focalLength,
-                        sensorHeight: cam.sensorHeight,
-                        zNear: cam.zNear,
-                        zFar: cam.zFar,
-                        focusDistance: cam.focusDistance,
-                        orientation: UIDevice.current.orientation.rawValue
-                    ))
-                }
+            timestamps.append(Float(time - recordStart))
+            cameraTransforms.append(pov.simdTransform)
+            lensDatas.append(BrenLensData(
+                fov: cam.fieldOfView,
+                focalLength: cam.focalLength,
+                sensorHeight: cam.sensorHeight,
+                zNear: cam.zNear,
+                zFar: cam.zFar,
+                focusDistance: cam.focusDistance,
+                orientation: UIDevice.current.orientation.rawValue
+            ))
+            videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
+            if let sceneDepth = frame.sceneDepth?.depthMap {
+                videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
             }
         }
     }
@@ -285,8 +263,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             fps: fps,
             viewResolutionX: viewResolutionX,
             viewResolutionY: viewResolutionY,
-            videoResolutionX: videoResolutionX,
-            videoResolutionY: videoResolutionY
+            videoResolutionX: videoSessionRGB!.videoResolutionX,
+            videoResolutionY: videoSessionRGB!.videoResolutionY
         )
         let cameraFrames = BrenCameraFrames(
             timestamps: timestamps,
@@ -315,10 +293,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func stopRecording() {
         isRecording = false
         sessionInProgress = false
-        assetWriter.finishWriting {
-            print("Finished writing .mp4")
-            self.writeBrenfile()
-            return
+        videoSessionRGB?.finish {
+            self.videoSessionDepth?.finish {
+                print("Finished writing .mp4s")
+                self.writeBrenfile()
+                self.videoSessionRGB = nil
+            }
         }
     }
     // MARK: - ARSessionDelegate
@@ -353,7 +333,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Add the visualization to the ARKit-managed node so that it tracks
         // changes in the plane anchor as plane estimation continues.
         node.addChildNode(extentNode)
-        
+
         if planeAnchor.alignment == .vertical {
             verticalPlaneNodes.append(extentNode)
         } else {
