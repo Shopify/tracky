@@ -10,6 +10,7 @@ import SceneKit
 import ARKit
 import AVFoundation
 import ARKit
+import CoreImage
 
 class VideoSession {
     var fps: UInt
@@ -20,31 +21,23 @@ class VideoSession {
     var videoResolutionY: UInt
     var assetWriter: AVAssetWriter
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor
+    var ciContext: CIContext? = nil
 
     init(pixelBuffer: CVPixelBuffer, outputURL: URL, startTime: TimeInterval, fps: UInt = 60, depth: Bool) {
         self.fps = fps
         self.outputURL = outputURL
         self.startTime = startTime
         self.depth = depth
+        if (depth) {
+            ciContext = CIContext()
+        }
         videoResolutionX = UInt(CVPixelBufferGetWidthOfPlane(pixelBuffer, 0))
         videoResolutionY = UInt(CVPixelBufferGetHeightOfPlane(pixelBuffer, 0))
-        
-        if depth {
-            let ftype = CVPixelBufferGetPixelFormatType(pixelBuffer)
-            let cString: [CChar] = [
-                CChar(ftype >> 24 & 0xFF),
-                CChar(ftype >> 16 & 0xFF),
-                CChar(ftype >> 8 & 0xFF),
-                CChar(ftype & 0xFF),
-                0
-            ]
-            print("TYPE: \(String(cString: cString))")
-        }
-        
-        assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: depth ? AVFileType.mov : AVFileType.mp4)
+
+        assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: AVFileType.mp4)
 
         let assetWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: [
-            AVVideoCodecKey: depth ? AVVideoCodecType.hevc : AVVideoCodecType.h264,
+            AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: videoResolutionX,
             AVVideoHeightKey: videoResolutionY,
         ] as [String : Any])
@@ -52,7 +45,7 @@ class VideoSession {
         assetWriter.add(assetWriterInput)
 
         assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterInput, sourcePixelBufferAttributes: [
-            kCVPixelBufferPixelFormatTypeKey as String: depth ? kCVPixelFormatType_DepthFloat32 : kCVPixelFormatType_32ARGB,
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
             kCVPixelBufferWidthKey as String: videoResolutionX,
             kCVPixelBufferHeightKey as String: videoResolutionY
         ])
@@ -67,7 +60,22 @@ class VideoSession {
             print("Not ready for more media data: \(ts)")
             return
         }
-        if !assetWriterPixelBufferInput.append(image, withPresentationTime: ts) {
+        var convertedImage: CVPixelBuffer!
+        if depth {
+            let ciImage = CIImage(cvPixelBuffer: image)
+            let result = CVPixelBufferCreate(nil, Int(videoResolutionX), Int(videoResolutionY), kCVPixelFormatType_32ARGB, [
+                kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+                kCVPixelBufferCGImageCompatibilityKey as String: true
+            ] as CFDictionary, &convertedImage)
+            if result != 0 {
+                print("Error creating depth CVPixelBuffer, code: \(result)")
+                return
+            }
+            ciContext?.render(ciImage, to: convertedImage)
+        } else {
+            convertedImage = image
+        }
+        if !assetWriterPixelBufferInput.append(convertedImage, withPresentationTime: ts) {
             print("Could not append \(depth ? "depth" : "rgb") frame \(ts)")
         }
     }

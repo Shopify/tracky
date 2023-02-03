@@ -188,7 +188,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if FileManager.default.fileExists(atPath: outputURL.path) {
             try? FileManager.default.removeItem(at: outputURL)
         }
-        let outputURLDepth = URL(fileURLWithPath: "depth.mov", relativeTo: recDir)
+        let outputURLDepth = URL(fileURLWithPath: "depth.mp4", relativeTo: recDir)
         if FileManager.default.fileExists(atPath: outputURLDepth.path) {
             try? FileManager.default.removeItem(at: outputURLDepth)
         }
