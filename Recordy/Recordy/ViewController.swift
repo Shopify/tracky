@@ -28,6 +28,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var viewResolutionY: UInt = 1
     var videoSessionRGB: VideoSession? = nil
     var videoSessionDepth: VideoSession? = nil
+    var videoSessionSegmentation: VideoSession? = nil
     
     var timestamps: [Float] = []
     var projectionMatrix = matrix_identity_float4x4
@@ -168,6 +169,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         guard let sceneDepth = frame.sceneDepth?.depthMap else {
+            print("ERROR: Could not start recording when ARFrame has no AR depth data")
+            return
+        }
+        guard let estimatedDepth = frame.estimatedDepthData else {
             print("ERROR: Could not start recording when ARFrame has no estimated depth data")
             return
         }
@@ -192,8 +197,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if FileManager.default.fileExists(atPath: outputURLDepth.path) {
             try? FileManager.default.removeItem(at: outputURLDepth)
         }
+        let outputURLSegmentation = URL(fileURLWithPath: "segmentation.mp4", relativeTo: recDir)
+        if FileManager.default.fileExists(atPath: outputURLSegmentation.path) {
+            try? FileManager.default.removeItem(at: outputURLSegmentation)
+        }
         videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage, outputURL: outputURL, startTime: time, fps: fps, depth: false)
         videoSessionDepth = VideoSession(pixelBuffer: sceneDepth, outputURL: outputURLDepth, startTime: time, fps: fps, depth: true)
+        videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth, outputURL: outputURLSegmentation, startTime: time, fps: fps, depth: true)
         projectionMatrix = simd_float4x4(projectionTransform)
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
@@ -232,6 +242,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
             if let sceneDepth = frame.sceneDepth?.depthMap {
                 videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
+            }
+            if let estimatedDepth = frame.estimatedDepthData {
+                videoSessionSegmentation?.addFrame(timestamp: time, image: estimatedDepth)
             }
         }
     }
@@ -295,9 +308,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sessionInProgress = false
         videoSessionRGB?.finish {
             self.videoSessionDepth?.finish {
-                print("Finished writing .mp4s")
-                self.writeBrenfile()
-                self.videoSessionRGB = nil
+                self.videoSessionSegmentation?.finish {
+                    print("Finished writing .mp4s")
+                    self.writeBrenfile()
+                    self.videoSessionRGB = nil
+                }
             }
         }
     }
