@@ -47,6 +47,8 @@ struct BrenPlane: Codable {
 }
 
 struct BrenWrapper: Codable {
+    var version_major: Int = 1 // only mutable so that it serializes
+    var version_minor: Int = 2 // only mutable so that it serializes
     let render_data: BrenRenderData
     let camera_frames: BrenCameraFrames
     let planes: [BrenPlane]
@@ -74,28 +76,16 @@ func create_transform(transform tfm: simd_float4x4) -> [[Float]] {
 struct BrenLensData: Codable {
     let data: [Float]
     
-    var fov: Float { get { return data[0] } }
-    var focalLength: Float { get { return data[1] } }
-    var sensorHeight: Float { get { return data[2] } }
-    var zNear: Float { get { return data[3] } }
-    var zFar: Float { get { return data[4] } }
-    var focusDistance: Float { get { return data[5] } }
-    var orientation: Int { get { return Int(data[6]) } }
+    var focalLength: Float { get { return data[0] } }
+    var sensorHeight: Float { get { return data[1] } }
+    var orientation: Int { get { return Int(data[2]) } }
     
-    init(fov: CGFloat,
-         focalLength: CGFloat,
+    init(focalLength: CGFloat,
          sensorHeight: CGFloat,
-         zNear: CGFloat,
-         zFar: CGFloat,
-         focusDistance: CGFloat,
          orientation: Int) {
         data = [
-            Float(fov),
             Float(focalLength),
             Float(sensorHeight),
-            Float(zNear),
-            Float(zFar),
-            Float(focusDistance),
             Float(orientation),
         ]
     }

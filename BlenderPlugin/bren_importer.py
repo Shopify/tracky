@@ -62,7 +62,8 @@ def import_brenfile(context, filepath):
         context.scene.render.resolution_y = render_data['video_resolution_y']
 
     # Setup scene settings
-    context.scene.frame_end = len(camera_timestamps)
+    if len(camera_timestamps) > 0:
+        context.scene.frame_end = int(math.ceil(camera_timestamps[-1] * fps)) + 1
 
     # Create camera
     bpy.ops.object.camera_add(enter_editmode=False)
@@ -90,15 +91,15 @@ def import_brenfile(context, filepath):
 
     # Create camera animation
     rot = IDENTITY_MATRIX
-    for i, _timestamp in enumerate(camera_timestamps):
-        #i = int(math.floor(timestamp * fps))
+    for idx, timestamp in enumerate(camera_timestamps):
         try:
-            mat = mathutils.Matrix(camera_transforms[i])
-            data = camera_datas[i]
+            mat = mathutils.Matrix(camera_transforms[idx])
+            data = camera_datas[idx]
         except IndexError:
             continue
-        focal_length, sensor_height, orientation = data[1], data[2], data[6]
-        frameidx = i
+        focal_length, sensor_height, orientation = data[0], data[1], data[2]
+
+        frameidx = int(math.ceil(timestamp * fps))
 
         context.scene.frame_set(frameidx)
 
@@ -123,19 +124,38 @@ def import_brenfile(context, filepath):
     # Rewind back to the first frame
     context.scene.frame_set(0)
 
+    bpy.ops.object.add()
+    horizontal_planes = context.object
+    horizontal_planes.name = 'Tracked Horizontal Planes'
+
+    bpy.ops.object.add()
+    vertical_planes = context.object
+    vertical_planes.name = 'Tracked Vertical Planes'
+
+    bpy.ops.object.add()
+    empties = context.object
+    empties.name = 'Tracked Empties'
+
     # Add planes
     for plane_index, plane in enumerate(planes):
         bpy.ops.mesh.primitive_plane_add(size=1.0, calc_uvs=True, enter_editmode=False, align='WORLD')
         plane_obj = context.object
-        plane_obj.name = 'Plane.Mesh.%d' % (plane_index + 1,)
+        plane_obj.parent = horizontal_planes if plane['alignment'] == 'horizontal' else vertical_planes
+        plane_obj.name = '%s Plane [%d]' % (plane['alignment'].capitalize(), plane_index + 1)
+        plane_obj.display_type = 'WIRE'
         plane_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
     
-    # Add tracked transforms
+    # Add tracked empty transforms
     for track_index, tfm in enumerate(tracked_transforms):
         bpy.ops.object.add()
         tracked_obj = context.object
-        tracked_obj.name = 'Tracked.Transform.%d' % (track_index + 1,)
+        tracked_obj.parent = empties
+        tracked_obj.name = 'Empty [%d]' % (track_index + 1,)
+        tracked_obj.empty_display_size = 0.2
         tracked_obj.matrix_world = UNITY2BLENDER @ mathutils.Matrix(tfm)
+
+    # Select the camera object again so that the user can adjust any keyframes as needed
+    cam.select_set(True)
 
     return {'FINISHED'}
     

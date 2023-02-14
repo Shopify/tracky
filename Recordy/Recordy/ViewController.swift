@@ -58,8 +58,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.delegate = self
         
         // Show statistics such as fps and timing information
-        sceneView.showsStatistics = true
-        sceneView.debugOptions = [.showBoundingBoxes]
+        //sceneView.showsStatistics = true
+        //sceneView.debugOptions = [.showBoundingBoxes, .showWireframe]
 
         recordButton.isHidden = false
         recordingButton.isHidden = true
@@ -222,7 +222,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func updateRecording(_ renderer: SCNSceneRenderer, _ time: TimeInterval) {
         guard let frame = sceneView.session.currentFrame,
               let pov = renderer.pointOfView,
-              let cam = pov.camera,
               let _ = frame.estimatedDepthData else {
             return
         }
@@ -234,14 +233,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if isRecording {
             timestamps.append(Float(time - recordStart))
             cameraTransforms.append(pov.simdTransform)
-            let focalLength = frame.exifData[focalLengthKey] as! NSNumber
+            let focalLength = CGFloat(truncating: frame.exifData[focalLengthKey] as! NSNumber)
             lensDatas.append(BrenLensData(
-                fov: cam.fieldOfView, // TODO: Remove me?
-                focalLength: CGFloat(truncating: focalLength),
+                focalLength: focalLength,
                 sensorHeight: 24, // 35mm film is 24mm tall by 36mm wide, who knew?
-                zNear: cam.zNear, // TODO: Remove me?
-                zFar: cam.zFar, // TODO: Remove me?
-                focusDistance: cam.focusDistance, // TODO: Remove me?
                 orientation: UIDevice.current.orientation.rawValue
             ))
             videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
@@ -340,7 +335,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             let material = SCNMaterial()
             material.lightingModel = .constant
             material.locksAmbientWithDiffuse = true
-            material.diffuse.contents = UIColor.init(white: CGFloat(1), alpha: CGFloat(0.1))
+            material.diffuse.contents = UIColor.init(white: CGFloat(1), alpha: CGFloat(1))
+            material.fillMode = .lines
             return material
         })
         let extentNode = SCNNode(geometry: extentPlane)
