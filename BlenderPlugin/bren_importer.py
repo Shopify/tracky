@@ -22,7 +22,7 @@ from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import axis_conversion
 
-UNITY_SCALE_MULTIPLIER = 100
+UNITY_SCALE_MULTIPLIER = 1
 UNITY2BLENDER = mathutils.Matrix.Scale(UNITY_SCALE_MULTIPLIER, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
 FRAME_OFFSET = 0
 
@@ -74,7 +74,7 @@ def import_brenfile(context, filepath):
     cam.name = 'ARCamera'
 
     # Setup video background
-    video_filepath = os.path.join(os.path.dirname(filepath), 'video.mp4')
+    video_filepath = filepath.replace('-camera.bren', '-video.mp4')
     background = cam.data.background_images.new()
     background.source = 'MOVIE_CLIP'
     background.clip = bpy.data.movieclips.load(filepath=video_filepath)

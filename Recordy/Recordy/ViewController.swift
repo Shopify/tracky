@@ -21,6 +21,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var sessionInProgress = false
     var recordStart: TimeInterval = 0
     
+    var ourEpoch: Int = 0
     var recordingDir: URL? = nil
     
     var fps: UInt = 60
@@ -181,7 +182,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         let dirname = dateFormatter.string(from: Date.now)
-        let recDir = URL(fileURLWithPath: dirname, isDirectory: true, relativeTo: documentsPath)
+        ourEpoch = Int(Date.now.timeIntervalSince1970) - 1676000000
+        let recDir = URL(fileURLWithPath: "\(dirname) \(ourEpoch)", isDirectory: true, relativeTo: documentsPath)
         do {
             try FileManager.default.createDirectory(at: recDir, withIntermediateDirectories: true)
         } catch {
@@ -189,15 +191,15 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         recordingDir = recDir
-        let outputURL = URL(fileURLWithPath: "video.mp4", relativeTo: recDir)
+        let outputURL = URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir)
         if FileManager.default.fileExists(atPath: outputURL.path) {
             try? FileManager.default.removeItem(at: outputURL)
         }
-        let outputURLDepth = URL(fileURLWithPath: "depth.mp4", relativeTo: recDir)
+        let outputURLDepth = URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir)
         if FileManager.default.fileExists(atPath: outputURLDepth.path) {
             try? FileManager.default.removeItem(at: outputURLDepth)
         }
-        let outputURLSegmentation = URL(fileURLWithPath: "segmentation.mp4", relativeTo: recDir)
+        let outputURLSegmentation = URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir)
         if FileManager.default.fileExists(atPath: outputURLSegmentation.path) {
             try? FileManager.default.removeItem(at: outputURLSegmentation)
         }
@@ -294,7 +296,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
-        let outputURL = URL(fileURLWithPath: "camera.bren", relativeTo: recordDir)
+        let outputURL = URL(fileURLWithPath: "\(ourEpoch)-camera.bren", relativeTo: recordDir)
         do {
             try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
             print("Finished writing .bren")
