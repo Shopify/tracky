@@ -22,9 +22,7 @@ from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper
 from bpy_extras.io_utils import axis_conversion
 
-UNITY_SCALE_MULTIPLIER = 1
-UNITY2BLENDER = mathutils.Matrix.Scale(UNITY_SCALE_MULTIPLIER, 4) @ axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
-FRAME_OFFSET = 0
+UNITY2BLENDER = axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', to_up='Z').to_4x4()
 
 IDENTITY_MATRIX = mathutils.Matrix.Identity(4)
 
@@ -64,12 +62,12 @@ def import_brenfile(context, filepath):
         context.scene.render.resolution_y = render_data['video_resolution_y']
 
     # Setup scene settings
-    context.scene.frame_end = len(camera_timestamps) + FRAME_OFFSET
+    context.scene.frame_end = len(camera_timestamps)
 
     # Create camera
     bpy.ops.object.camera_add(enter_editmode=False)
     cam = context.active_object
-    cam.data.sensor_fit = 'VERTICAL'
+    cam.data.sensor_fit = 'HORIZONTAL'
     cam.data.lens_unit = 'MILLIMETERS'
     cam.name = 'ARCamera'
 
@@ -92,15 +90,15 @@ def import_brenfile(context, filepath):
 
     # Create camera animation
     rot = IDENTITY_MATRIX
-    for _i, timestamp in enumerate(camera_timestamps):
-        i = int(math.floor(timestamp * fps))
+    for i, _timestamp in enumerate(camera_timestamps):
+        #i = int(math.floor(timestamp * fps))
         try:
             mat = mathutils.Matrix(camera_transforms[i])
             data = camera_datas[i]
         except IndexError:
             continue
         focal_length, sensor_height, orientation = data[1], data[2], data[6]
-        frameidx = i + FRAME_OFFSET
+        frameidx = i
 
         context.scene.frame_set(frameidx)
 
