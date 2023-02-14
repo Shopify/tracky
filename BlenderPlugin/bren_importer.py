@@ -76,6 +76,7 @@ def import_brenfile(context, filepath):
     video_filepath = filepath.replace('-camera.bren', '-video.mp4')
     background = cam.data.background_images.new()
     background.source = 'MOVIE_CLIP'
+    background.alpha = 1
     background.clip = bpy.data.movieclips.load(filepath=video_filepath)
     background.frame_method = 'STRETCH'
     background.show_background_image = True
