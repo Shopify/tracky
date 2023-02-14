@@ -11,6 +11,8 @@ import ARKit
 import AVFoundation
 import ARKit
 
+let focalLengthKey = kCGImagePropertyExifFocalLenIn35mmFilm as String
+
 class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
@@ -232,12 +234,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if isRecording {
             timestamps.append(Float(time - recordStart))
             cameraTransforms.append(pov.simdTransform)
-            let focalLengthKey = kCGImagePropertyExifFocalLenIn35mmFilm as String
             let focalLength = frame.exifData[focalLengthKey] as! NSNumber
             lensDatas.append(BrenLensData(
                 fov: cam.fieldOfView, // TODO: Remove me?
                 focalLength: CGFloat(truncating: focalLength),
-                sensorHeight: 35,
+                sensorHeight: 24, // 35mm film is 24mm tall by 36mm wide, who knew?
                 zNear: cam.zNear, // TODO: Remove me?
                 zFar: cam.zFar, // TODO: Remove me?
                 focusDistance: cam.focusDistance, // TODO: Remove me?

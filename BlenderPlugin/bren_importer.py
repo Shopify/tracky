@@ -67,7 +67,7 @@ def import_brenfile(context, filepath):
     # Create camera
     bpy.ops.object.camera_add(enter_editmode=False)
     cam = context.active_object
-    cam.data.sensor_fit = 'HORIZONTAL'
+    cam.data.sensor_fit = 'VERTICAL'
     cam.data.lens_unit = 'MILLIMETERS'
     cam.name = 'ARCamera'
 
