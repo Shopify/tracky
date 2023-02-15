@@ -18,6 +18,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
     @IBOutlet var fpsButton: UIButton!
+    @IBOutlet var clearAllButton: UIButton!
     
     var emptyNode: SCNNode!
 
@@ -82,10 +83,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordingButton.isHidden = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
-
-        let tripleTap = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
-        tripleTap.numberOfTapsRequired = 3
-        view.addGestureRecognizer(tripleTap)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -135,6 +132,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             if let idx = trackedNodes.firstIndex(of: tmpNode) {
                 trackedNodes.remove(at: idx)
                 tmpNode.removeFromParentNode()
+                clearAllButton.isHidden = trackedNodes.count == 0
                 return
             }
         }
@@ -154,11 +152,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.scene.rootNode.addChildNode(node)
         node.simdTransform = result.worldTransform
         trackedNodes.append(node)
-    }
-    
-    @objc func handleTripleTap(_ gesture: UITapGestureRecognizer) {
-        trackedNodes.forEach { $0.removeFromParentNode() }
-        trackedNodes.removeAll()
+        clearAllButton.isHidden = false
     }
 
     // Button handler
@@ -182,6 +176,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             sceneView.preferredFramesPerSecond = 60
         }
         fpsButton.setTitle("\(fps)fps", for: .normal)
+    }
+
+    @IBAction @objc func handleClearAllTap() {
+        trackedNodes.forEach { $0.removeFromParentNode() }
+        trackedNodes.removeAll()
+        clearAllButton.isHidden = true
     }
 
     // MARK: Recording Functions

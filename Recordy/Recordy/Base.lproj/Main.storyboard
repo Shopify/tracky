@@ -55,11 +55,20 @@
                                     <action selector="handleFpsButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="ysZ-w5-6Gc"/>
                                 </connections>
                             </button>
+                            <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="RGa-ln-Ey1">
+                                <rect key="frame" x="29" y="738" width="50" height="35"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" image="trash.circle.fill" catalog="system" title=""/>
+                                <connections>
+                                    <action selector="handleClearAllTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="bpM-dn-4kD"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="dUK-vX-tLS" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="0cV-r9-AKT"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="RGa-ln-Ey1" secondAttribute="bottom" constant="45" id="G47-Nl-u7c"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" id="GsS-dJ-CKf"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="VpT-BR-CcM"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="trailing" secondItem="fQZ-KI-GVf" secondAttribute="trailing" id="XyZ-9z-H8e"/>
@@ -69,9 +78,11 @@
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="3bN-lF-9T5" secondAttribute="trailing" constant="19" id="jPn-zn-SBF"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="kQw-HA-47T" secondAttribute="bottom" constant="32" id="oRh-Kd-hub"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="top" secondItem="U0K-SW-4ec" secondAttribute="top" id="rJc-2c-zQA"/>
+                            <constraint firstItem="RGa-ln-Ey1" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" constant="29" id="xPH-gX-mGe"/>
                         </constraints>
                     </view>
                     <connections>
+                        <outlet property="clearAllButton" destination="RGa-ln-Ey1" id="GXW-Om-fqs"/>
                         <outlet property="fpsButton" destination="3bN-lF-9T5" id="z41-Ai-QAd"/>
                         <outlet property="recordButton" destination="kQw-HA-47T" id="0Fb-PR-csr"/>
                         <outlet property="recordingButton" destination="dUK-vX-tLS" id="3DN-Am-C2r"/>
@@ -86,6 +97,7 @@
     <resources>
         <image name="RecordButton_Recording" width="256" height="256"/>
         <image name="RecordButton_Waiting" width="256" height="256"/>
+        <image name="trash.circle.fill" catalog="system" width="128" height="123"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>
