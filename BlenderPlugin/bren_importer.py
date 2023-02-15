@@ -143,7 +143,7 @@ def import_brenfile(context, filepath):
         plane_obj.parent = horizontal_planes if plane['alignment'] == 'horizontal' else vertical_planes
         plane_obj.name = '%s Plane [%d]' % (plane['alignment'].capitalize(), plane_index + 1)
         plane_obj.display_type = 'WIRE'
-        tracked_obj.hide_render = True
+        plane_obj.hide_render = True
         plane_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
     
     # Add tracked empty transforms
