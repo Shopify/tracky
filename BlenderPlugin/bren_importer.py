@@ -88,7 +88,8 @@ def import_brenfile(context, filepath):
             for space in area.spaces:
                 if space.type == 'VIEW_3D':
                     space.camera = cam
-                    space.region_3d.view_perspective = 'CAMERA'
+                    # TODO: Add the following back as an import option
+                    #space.region_3d.view_perspective = 'CAMERA'
 
     # Create camera animation
     rot = IDENTITY_MATRIX
@@ -116,6 +117,8 @@ def import_brenfile(context, filepath):
             rot = ROTATE_LANDSCAPE_LEFT
         elif orientation == 4:
             rot = ROTATE_LANDSCAPE_RIGHT
+        else:
+            continue
         cam.matrix_world = UNITY2BLENDER @ (mat @ rot)
 
         # Note that we only save the loc and rot keyframes, but it does apply the scale to the camera
