@@ -11,8 +11,6 @@ import ARKit
 import AVFoundation
 import ARKit
 
-let focalLengthKey = kCGImagePropertyExifFocalLenIn35mmFilm as String
-
 class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
@@ -65,6 +63,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordingButton.isHidden = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+
+        let tripleTap = UITapGestureRecognizer(target: self, action: #selector(handleTripleTap))
+        tripleTap.numberOfTapsRequired = 3
+        view.addGestureRecognizer(tripleTap)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -72,7 +74,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         
         // Remove any existing tracked AR stuff
         trackedNodes.forEach { $0.removeFromParentNode() }
-        trackedNodes.removeAll(keepingCapacity: true)
+        trackedNodes.removeAll()
         //planeAnchors.removeAll(keepingCapacity: true)
         horizontalPlaneNodes.removeAll(keepingCapacity: true)
         verticalPlaneNodes.removeAll(keepingCapacity: true)
@@ -137,6 +139,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         trackedNodes.append(node)
     }
     
+    @objc func handleTripleTap(_ gesture: UITapGestureRecognizer) {
+        trackedNodes.forEach { $0.removeFromParentNode() }
+        trackedNodes.removeAll()
+    }
+
     // Button handler
     
     @IBAction @objc func handleMainButtonTap() {
@@ -233,10 +240,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if isRecording {
             timestamps.append(Float(time - recordStart))
             cameraTransforms.append(pov.simdTransform)
-            let focalLength = CGFloat(truncating: frame.exifData[focalLengthKey] as! NSNumber)
+
+            let filmHeight = 24.0 // 35mm film is 24mm tall by 36mm wide, who knew?
+            let focalLength = CGFloat(frame.camera.intrinsics[1, 1]) * (filmHeight / frame.camera.imageResolution.height)
             lensDatas.append(BrenLensData(
                 focalLength: focalLength,
-                sensorHeight: 24, // 35mm film is 24mm tall by 36mm wide, who knew?
+                sensorHeight: filmHeight,
                 orientation: UIDevice.current.orientation.rawValue
             ))
             videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
