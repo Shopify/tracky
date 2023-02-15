@@ -10,12 +10,16 @@ import SceneKit
 import ARKit
 import AVFoundation
 import ARKit
+import ModelIO
+import SceneKit.ModelIO
 
 class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
     
+    var emptyNode: SCNNode!
+
     var wantsRecording = false
     var isRecording = false
     var sessionInProgress = false
@@ -52,6 +56,20 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        guard let emptyUrl = Bundle.main.url(forResource: "empty", withExtension: "usdz") else { fatalError() }
+        emptyNode = SCNNode(mdlObject: MDLAsset(url: emptyUrl).object(at: 0))
+        emptyNode.enumerateHierarchy { node, _rest in
+            if node.name == "TapTarget" {
+                node.categoryBitMask = trackedNodeBitmask
+                node.isHidden = true
+                return
+            }
+            node.geometry?.materials = (node.geometry?.materials ?? []).map({ mat in
+                mat.lightingModel = .constant
+                return mat
+            })
+        }
+
         // Set the view's delegate
         sceneView.delegate = self
         
@@ -106,13 +124,18 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
         let loc = gesture.location(in: sceneView)
-        
+
         // First, see if it hits anything in the scene
-        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask]).first,
-           let idx = trackedNodes.firstIndex(of: hitResult.node) {
-            trackedNodes.remove(at: idx)
-            hitResult.node.removeFromParentNode()
-            return
+        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
+            var tmpNode = hitResult.node
+            while let tmp = tmpNode.parent, tmp.parent != nil {
+                tmpNode = tmp
+            }
+            if let idx = trackedNodes.firstIndex(of: tmpNode) {
+                trackedNodes.remove(at: idx)
+                tmpNode.removeFromParentNode()
+                return
+            }
         }
         
         // Otherwise, raycast out into the real world and place a new tracked node there
@@ -126,14 +149,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
 
-        let mat = SCNMaterial()
-        mat.lightingModel = .constant
-        mat.locksAmbientWithDiffuse = true
-        mat.diffuse.contents = UIColor.gray
-        let geom = SCNBox(width: 0.1, height: 0.1, length: 0.1, chamferRadius: 0)
-        geom.materials = geom.materials.map({ _ in return  mat })
-        let node = SCNNode(geometry: geom)
-        node.categoryBitMask = trackedNodeBitmask
+        let node = emptyNode.clone()
         sceneView.scene.rootNode.addChildNode(node)
         node.simdTransform = result.worldTransform
         trackedNodes.append(node)
