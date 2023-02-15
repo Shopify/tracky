@@ -63,7 +63,7 @@ def import_brenfile(context, filepath):
 
     # Setup scene settings
     if len(camera_timestamps) > 0:
-        context.scene.frame_end = int(math.ceil(camera_timestamps[-1] * fps)) + 1
+        context.scene.frame_end = int(math.ceil(camera_timestamps[-1] * fps))
 
     # Create camera
     bpy.ops.object.camera_add(enter_editmode=False)
