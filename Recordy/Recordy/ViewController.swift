@@ -405,6 +405,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         extentNode.simdScale.y = planeAnchor.planeExtent.height
     }
     
+    func renderer(_ renderer: SCNSceneRenderer, didRemove node: SCNNode, for anchor: ARAnchor) {
+        guard let _ = anchor as? ARPlaneAnchor, let _ = node.childNodes.first else { return }
+        node.removeFromParentNode()
+    }
+
     func session(_ session: ARSession, didFailWithError error: Error) {
         // Present an error message to the user
         
