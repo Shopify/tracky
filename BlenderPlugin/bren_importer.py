@@ -159,6 +159,7 @@ def import_brenfile(context, filepath):
         tracked_obj.matrix_world = UNITY2BLENDER @ mathutils.Matrix(tfm)
 
     # Select the camera object again so that the user can adjust any keyframes as needed
+    context.object.select_set(False)
     cam.select_set(True)
 
     return {'FINISHED'}

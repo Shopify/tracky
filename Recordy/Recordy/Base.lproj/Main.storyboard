@@ -47,6 +47,14 @@
                                     <action selector="handleMainButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="oTN-zT-QEa"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="3bN-lF-9T5">
+                                <rect key="frame" x="305" y="737" width="69" height="35"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="60fps"/>
+                                <connections>
+                                    <action selector="handleFpsButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="ysZ-w5-6Gc"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -56,12 +64,15 @@
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="VpT-BR-CcM"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="trailing" secondItem="fQZ-KI-GVf" secondAttribute="trailing" id="XyZ-9z-H8e"/>
                             <constraint firstItem="kQw-HA-47T" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="aSe-IL-ETQ"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="3bN-lF-9T5" secondAttribute="bottom" constant="46" id="hJa-nO-ND2"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="dUK-vX-tLS" secondAttribute="bottom" constant="32" id="hYV-pt-YYN"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="3bN-lF-9T5" secondAttribute="trailing" constant="19" id="jPn-zn-SBF"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="kQw-HA-47T" secondAttribute="bottom" constant="32" id="oRh-Kd-hub"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="top" secondItem="U0K-SW-4ec" secondAttribute="top" id="rJc-2c-zQA"/>
                         </constraints>
                     </view>
                     <connections>
+                        <outlet property="fpsButton" destination="3bN-lF-9T5" id="z41-Ai-QAd"/>
                         <outlet property="recordButton" destination="kQw-HA-47T" id="0Fb-PR-csr"/>
                         <outlet property="recordingButton" destination="dUK-vX-tLS" id="3DN-Am-C2r"/>
                         <outlet property="sceneView" destination="BrB-h1-WRS" id="5nT-qQ-ynl"/>

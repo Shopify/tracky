@@ -17,6 +17,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
+    @IBOutlet var fpsButton: UIButton!
     
     var emptyNode: SCNNode!
 
@@ -172,6 +173,17 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
     
+    @IBAction @objc func handleFpsButtonTap() {
+        if fps > 30 {
+            fps = 30
+            sceneView.preferredFramesPerSecond = 30
+        } else {
+            fps = 60
+            sceneView.preferredFramesPerSecond = 60
+        }
+        fpsButton.setTitle("\(fps)fps", for: .normal)
+    }
+
     // MARK: Recording Functions
     
     func setWantsRecording() {

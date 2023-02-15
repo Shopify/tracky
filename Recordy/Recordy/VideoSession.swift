@@ -55,7 +55,7 @@ class VideoSession {
     }
 
     func addFrame(timestamp: TimeInterval, image: CVPixelBuffer) {
-        let ts = CMTimeMakeWithSeconds(timestamp - startTime, preferredTimescale: 600)
+        let ts = CMTimeMakeWithSeconds(timestamp - startTime, preferredTimescale: Int32(fps) * 10)
         if !assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
             print("Not ready for more media data: \(ts)")
             return
