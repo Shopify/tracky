@@ -406,8 +406,19 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func renderer(_ renderer: SCNSceneRenderer, didRemove node: SCNNode, for anchor: ARAnchor) {
-        guard let _ = anchor as? ARPlaneAnchor, let _ = node.childNodes.first else { return }
-        node.removeFromParentNode()
+        guard let _ = anchor as? ARPlaneAnchor, let extentNode = node.childNodes.first else { return }
+        var found = false
+        if let idx = horizontalPlaneNodes.firstIndex(of: extentNode) {
+            horizontalPlaneNodes.remove(at: idx)
+            found = true
+        }
+        if let idx = verticalPlaneNodes.firstIndex(of: extentNode) {
+            verticalPlaneNodes.remove(at: idx)
+            found = true
+        }
+        if found {
+            node.removeFromParentNode()
+        }
     }
 
     func session(_ session: ARSession, didFailWithError error: Error) {
