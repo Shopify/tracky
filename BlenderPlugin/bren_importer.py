@@ -107,7 +107,6 @@ def import_brenfile(context, filepath):
         cam.data.lens = focal_length
         cam.data.sensor_height = sensor_height
         assert cam.data.keyframe_insert('lens', frame=frameidx), 'Could not insert lens keyframe'
-        assert cam.data.keyframe_insert('sensor_height', frame=frameidx), 'Could not insert sensor_height keyframe'
 
         if orientation == 1:
             rot = ROTATE_PORTRAIT
@@ -144,6 +143,7 @@ def import_brenfile(context, filepath):
         plane_obj.parent = horizontal_planes if plane['alignment'] == 'horizontal' else vertical_planes
         plane_obj.name = '%s Plane [%d]' % (plane['alignment'].capitalize(), plane_index + 1)
         plane_obj.display_type = 'WIRE'
+        tracked_obj.hide_render = True
         plane_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
     
     # Add tracked empty transforms
