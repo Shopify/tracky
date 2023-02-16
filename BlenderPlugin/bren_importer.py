@@ -65,12 +65,17 @@ def import_brenfile(context, filepath):
     if len(camera_timestamps) > 0:
         context.scene.frame_end = int(math.ceil(camera_timestamps[-1] * fps))
 
+    bpy.ops.object.add()
+    bren_root = context.object
+    bren_root.name = 'Imported Tracking Data'
+
     # Create camera
     bpy.ops.object.camera_add(enter_editmode=False)
     cam = context.active_object
     cam.data.sensor_fit = 'VERTICAL'
     cam.data.lens_unit = 'MILLIMETERS'
     cam.name = 'ARCamera'
+    cam.parent = bren_root
 
     # Setup video background
     video_filepath = filepath.replace('-camera.bren', '-video.mp4')
@@ -127,23 +132,11 @@ def import_brenfile(context, filepath):
     # Rewind back to the first frame
     context.scene.frame_set(0)
 
-    bpy.ops.object.add()
-    horizontal_planes = context.object
-    horizontal_planes.name = 'Tracked Horizontal Planes'
-
-    bpy.ops.object.add()
-    vertical_planes = context.object
-    vertical_planes.name = 'Tracked Vertical Planes'
-
-    bpy.ops.object.add()
-    empties = context.object
-    empties.name = 'Tracked Empties'
-
     # Add planes
     for plane_index, plane in enumerate(planes):
         bpy.ops.mesh.primitive_plane_add(size=1.0, calc_uvs=True, enter_editmode=False, align='WORLD')
         plane_obj = context.object
-        plane_obj.parent = horizontal_planes if plane['alignment'] == 'horizontal' else vertical_planes
+        plane_obj.parent = bren_root
         plane_obj.name = '%s Plane [%d]' % (plane['alignment'].capitalize(), plane_index + 1)
         plane_obj.display_type = 'WIRE'
         plane_obj.hide_render = True
@@ -153,7 +146,7 @@ def import_brenfile(context, filepath):
     for track_index, tfm in enumerate(tracked_transforms):
         bpy.ops.object.add()
         tracked_obj = context.object
-        tracked_obj.parent = empties
+        tracked_obj.parent = bren_root
         tracked_obj.name = 'Empty [%d]' % (track_index + 1,)
         tracked_obj.empty_display_size = 0.2
         tracked_obj.matrix_world = UNITY2BLENDER @ mathutils.Matrix(tfm)
