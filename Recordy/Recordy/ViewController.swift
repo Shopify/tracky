@@ -19,6 +19,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var recordingButton: UIButton!
     @IBOutlet var fpsButton: UIButton!
     @IBOutlet var clearAllButton: UIButton!
+    @IBOutlet var recordTimeLabel: UILabel!
     
     var emptyNode: SCNNode!
 
@@ -199,6 +200,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         viewResolutionY = UInt(siz.height * scl)
         
         wantsRecording = true
+
+        recordTimeLabel.text = "0:00:00"
+        recordTimeLabel.isHidden = false
     }
     
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
@@ -265,24 +269,41 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             wantsRecording = false
             startRecording(renderer, frame, time)
         }
-        if isRecording {
-            timestamps.append(Float(time - recordStart))
-            cameraTransforms.append(pov.simdTransform)
+        if !isRecording {
+            return
+        }
 
-            let filmHeight = 24.0 // 35mm film is 24mm tall by 36mm wide, who knew?
-            let focalLength = CGFloat(frame.camera.intrinsics[1, 1]) * (filmHeight / frame.camera.imageResolution.height)
-            lensDatas.append(BrenLensData(
-                focalLength: focalLength,
-                sensorHeight: filmHeight,
-                orientation: UIDevice.current.orientation.rawValue
-            ))
-            videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
-            if let sceneDepth = frame.sceneDepth?.depthMap {
-                videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
-            }
-            if let estimatedDepth = frame.estimatedDepthData {
-                videoSessionSegmentation?.addFrame(timestamp: time, image: estimatedDepth)
-            }
+        let runTime = time - recordStart
+
+        // Count-up label
+        let labelTime = NSInteger(runTime)
+        let ms = Int((runTime.truncatingRemainder(dividingBy: 1)) * 100)
+        let seconds = labelTime % 60
+        let minutes = (labelTime / 60) % 60
+        let labelText = String(format: "%02d:%02d.%02d", minutes, seconds, ms)
+        DispatchQueue.main.async {
+            self.recordTimeLabel.text = labelText
+        }
+
+        // Saved data for .bren file
+        timestamps.append(Float(runTime))
+        cameraTransforms.append(pov.simdTransform)
+
+        let filmHeight = 24.0 // 35mm film is 24mm tall by 36mm wide, who knew?
+        let focalLength = CGFloat(frame.camera.intrinsics[1, 1]) * (filmHeight / frame.camera.imageResolution.height)
+        lensDatas.append(BrenLensData(
+            focalLength: focalLength,
+            sensorHeight: filmHeight,
+            orientation: UIDevice.current.orientation.rawValue
+        ))
+
+        // Capture video frames
+        videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
+        if let sceneDepth = frame.sceneDepth?.depthMap {
+            videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
+        }
+        if let estimatedDepth = frame.estimatedDepthData {
+            videoSessionSegmentation?.addFrame(timestamp: time, image: estimatedDepth)
         }
     }
     
@@ -341,6 +362,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
     
     func stopRecording() {
+        recordTimeLabel.isHidden = true
         isRecording = false
         sessionInProgress = false
         videoSessionRGB?.finish {

@@ -63,6 +63,23 @@
                                     <action selector="handleClearAllTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="bpM-dn-4kD"/>
                                 </connections>
                             </button>
+                            <label hidden="YES" opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="0:00:00" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="pca-4E-CP1">
+                                <rect key="frame" x="257" y="71" width="120" height="34"/>
+                                <color key="backgroundColor" systemColor="systemRedColor"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="34" id="94u-s1-dzw"/>
+                                    <constraint firstAttribute="width" constant="120" id="sCB-14-Dcd"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" name="Menlo-Bold" family="Menlo" pointSize="17"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <nil key="highlightedColor"/>
+                                <userDefinedRuntimeAttributes>
+                                    <userDefinedRuntimeAttribute type="number" keyPath="layer.cornerRadius">
+                                        <integer key="value" value="15"/>
+                                    </userDefinedRuntimeAttribute>
+                                    <userDefinedRuntimeAttribute type="boolean" keyPath="layer.masksToBounds" value="YES"/>
+                                </userDefinedRuntimeAttributes>
+                            </label>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
@@ -73,9 +90,11 @@
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="VpT-BR-CcM"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="trailing" secondItem="fQZ-KI-GVf" secondAttribute="trailing" id="XyZ-9z-H8e"/>
                             <constraint firstItem="kQw-HA-47T" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="aSe-IL-ETQ"/>
+                            <constraint firstItem="pca-4E-CP1" firstAttribute="top" secondItem="fQZ-KI-GVf" secondAttribute="top" constant="12" id="azL-vw-ZEQ"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="3bN-lF-9T5" secondAttribute="bottom" constant="46" id="hJa-nO-ND2"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="dUK-vX-tLS" secondAttribute="bottom" constant="32" id="hYV-pt-YYN"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="3bN-lF-9T5" secondAttribute="trailing" constant="19" id="jPn-zn-SBF"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="pca-4E-CP1" secondAttribute="trailing" constant="16" id="mrE-qh-p0y"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="kQw-HA-47T" secondAttribute="bottom" constant="32" id="oRh-Kd-hub"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="top" secondItem="U0K-SW-4ec" secondAttribute="top" id="rJc-2c-zQA"/>
                             <constraint firstItem="RGa-ln-Ey1" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" constant="29" id="xPH-gX-mGe"/>
@@ -85,6 +104,7 @@
                         <outlet property="clearAllButton" destination="RGa-ln-Ey1" id="GXW-Om-fqs"/>
                         <outlet property="fpsButton" destination="3bN-lF-9T5" id="z41-Ai-QAd"/>
                         <outlet property="recordButton" destination="kQw-HA-47T" id="0Fb-PR-csr"/>
+                        <outlet property="recordTimeLabel" destination="pca-4E-CP1" id="Q7D-eZ-qph"/>
                         <outlet property="recordingButton" destination="dUK-vX-tLS" id="3DN-Am-C2r"/>
                         <outlet property="sceneView" destination="BrB-h1-WRS" id="5nT-qQ-ynl"/>
                     </connections>
@@ -100,6 +120,9 @@
         <image name="trash.circle.fill" catalog="system" width="128" height="123"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+        <systemColor name="systemRedColor">
+            <color red="1" green="0.23137254901960785" blue="0.18823529411764706" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
     </resources>
 </document>
