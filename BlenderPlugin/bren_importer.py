@@ -63,7 +63,7 @@ def import_brenfile(context, filepath):
 
     # Setup scene settings
     if len(camera_timestamps) > 0:
-        context.scene.frame_end = int(math.ceil(camera_timestamps[-1] * fps))
+        context.scene.frame_end = max(int(math.ceil(camera_timestamps[-1] * fps)), 1)
 
     bpy.ops.object.add()
     bren_root = context.object
@@ -106,7 +106,7 @@ def import_brenfile(context, filepath):
             continue
         focal_length, sensor_height, orientation = data[0], data[1], data[2]
 
-        frameidx = int(math.ceil(timestamp * fps))
+        frameidx = max(int(math.ceil(timestamp * fps)), 1)
 
         context.scene.frame_set(frameidx)
 
@@ -130,7 +130,7 @@ def import_brenfile(context, filepath):
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')
 
     # Rewind back to the first frame
-    context.scene.frame_set(0)
+    context.scene.frame_set(1)
 
     # Add planes
     for plane_index, plane in enumerate(planes):
