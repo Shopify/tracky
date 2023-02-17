@@ -9,13 +9,15 @@ import Foundation
 import simd
 
 struct BrenRenderData: Codable {
+    let orientation: UInt
     let fps: UInt
     let view_resolution_x: UInt
     let view_resolution_y: UInt
     let video_resolution_x: UInt
     let video_resolution_y: UInt
     
-    init(fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, videoResolutionX: UInt, videoResolutionY: UInt) {
+    init(orientation: UInt, fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, videoResolutionX: UInt, videoResolutionY: UInt) {
+        self.orientation = orientation
         self.fps = fps
         self.view_resolution_x = viewResolutionX
         self.view_resolution_y = viewResolutionY
@@ -78,15 +80,12 @@ struct BrenLensData: Codable {
     
     var focalLength: Float { get { return data[0] } }
     var sensorHeight: Float { get { return data[1] } }
-    var orientation: Int { get { return Int(data[2]) } }
     
     init(focalLength: CGFloat,
-         sensorHeight: CGFloat,
-         orientation: Int) {
+         sensorHeight: CGFloat) {
         data = [
             Float(focalLength),
             Float(sensorHeight),
-            Float(orientation),
         ]
     }
 }

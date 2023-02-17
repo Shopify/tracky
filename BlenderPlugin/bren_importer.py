@@ -26,13 +26,16 @@ UNITY2BLENDER = axis_conversion(from_forward='Z', from_up='Y', to_forward='-Y', 
 
 IDENTITY_MATRIX = mathutils.Matrix.Identity(4)
 
-RAD_PORTRAIT = math.radians(-90)
-RAD_PORTRAIT_UPSIDE_DOWN = math.radians(90)
+ORIENTATION_PORTRAIT = 1
+ORIENTATION_UPSIDE_DOWN = 2
+ORIENTATION_LANDSCAPE_LEFT = 3
+ORIENTATION_LANDSCAPE_RIGHT = 4
+
+RAD_PORTRAIT = math.radians(0)
 RAD_LANDSCAPE_LEFT = math.radians(0)
 RAD_LANDSCAPE_RIGHT = math.radians(180)
 
 ROTATE_PORTRAIT = mathutils.Matrix.Rotation(RAD_PORTRAIT, 4, 'Z')
-ROTATE_PORTRAIT_UPSIDE_DOWN = mathutils.Matrix.Rotation(RAD_PORTRAIT_UPSIDE_DOWN, 4, 'Z')
 ROTATE_LANDSCAPE_LEFT = mathutils.Matrix.Rotation(RAD_LANDSCAPE_LEFT, 4, 'Z')
 ROTATE_LANDSCAPE_RIGHT = mathutils.Matrix.Rotation(RAD_LANDSCAPE_RIGHT, 4, 'Z')
 
@@ -51,15 +54,26 @@ def import_brenfile(context, filepath):
     planes = data.get('planes') or []
     tracked_transforms = data.get('tracked_transforms') or []
 
+    resolution_x = render_data['video_resolution_x']
+    resolution_y = render_data['video_resolution_y']
+
+    if len(camera_datas) == 0:
+        return
+
+    camera_rotation = IDENTITY_MATRIX
+    video_orientation = render_data['orientation']
+    if video_orientation == ORIENTATION_PORTRAIT:
+        camera_rotation = ROTATE_PORTRAIT
+    elif video_orientation == ORIENTATION_LANDSCAPE_LEFT:
+        camera_rotation = ROTATE_LANDSCAPE_LEFT
+    elif video_orientation == ROTATE_LANDSCAPE_RIGHT:
+        camera_rotation = ROTATE_LANDSCAPE_RIGHT
+
     # Setup render settings
-    fps = 60
-    if 'fps' in render_data:
-        fps = render_data['fps']
-        context.scene.render.fps = fps
-    if 'video_resolution_x' in render_data:
-        context.scene.render.resolution_x = render_data['video_resolution_x']
-    if 'video_resolution_y' in render_data:
-        context.scene.render.resolution_y = render_data['video_resolution_y']
+    fps = render_data.get('fps', 60)
+    context.scene.render.fps = fps
+    context.scene.render.resolution_x = resolution_x
+    context.scene.render.resolution_y = resolution_y
 
     # Setup scene settings
     if len(camera_timestamps) > 0:
@@ -85,6 +99,12 @@ def import_brenfile(context, filepath):
     background.clip = bpy.data.movieclips.load(filepath=video_filepath)
     background.frame_method = 'STRETCH'
     background.show_background_image = True
+    if video_orientation == ORIENTATION_PORTRAIT:
+        background.frame_method = 'CROP'
+        background.rotation = math.radians(90)
+        background.scale = resolution_x / resolution_y
+    elif video_orientation == ORIENTATION_LANDSCAPE_RIGHT:
+        background.rotation = RAD_LANDSCAPE_RIGHT
     cam.data.show_background_images = True
 
     # Switch the 3D windows to view through the new camera with the background
@@ -97,14 +117,13 @@ def import_brenfile(context, filepath):
                     #space.region_3d.view_perspective = 'CAMERA'
 
     # Create camera animation
-    rot = IDENTITY_MATRIX
     for idx, timestamp in enumerate(camera_timestamps):
         try:
             mat = mathutils.Matrix(camera_transforms[idx])
             data = camera_datas[idx]
         except IndexError:
             continue
-        focal_length, sensor_height, orientation = data[0], data[1], data[2]
+        focal_length, sensor_height = data[0], data[1]
 
         frameidx = max(int(math.ceil(timestamp * fps)), 1)
 
@@ -114,17 +133,7 @@ def import_brenfile(context, filepath):
         cam.data.sensor_height = sensor_height
         assert cam.data.keyframe_insert('lens', frame=frameidx), 'Could not insert lens keyframe'
 
-        if orientation == 1:
-            rot = ROTATE_PORTRAIT
-        elif orientation == 2:
-            rot = ROTATE_PORTRAIT_UPSIDE_DOWN
-        elif orientation == 3:
-            rot = ROTATE_LANDSCAPE_LEFT
-        elif orientation == 4:
-            rot = ROTATE_LANDSCAPE_RIGHT
-        else:
-            continue
-        cam.matrix_world = UNITY2BLENDER @ (mat @ rot)
+        cam.matrix_world = UNITY2BLENDER @ (mat @ camera_rotation)
 
         # Note that we only save the loc and rot keyframes, but it does apply the scale to the camera
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')

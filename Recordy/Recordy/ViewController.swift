@@ -27,6 +27,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var isRecording = false
     var sessionInProgress = false
     var recordStart: TimeInterval = 0
+    var recordOrientation = UIDevice.current.orientation
     
     var ourEpoch: Int = 0
     var recordingDir: URL? = nil
@@ -253,6 +254,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         lensDatas.removeAll(keepingCapacity: true)
         //planeAnchors.removeAll(keepingCapacity: false)
         recordStart = time
+        recordOrientation = UIDevice.current.orientation
         sessionInProgress = false
 
         isRecording = true
@@ -289,13 +291,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         timestamps.append(Float(runTime))
         cameraTransforms.append(pov.simdTransform)
 
-        let filmHeight = 24.0 // 35mm film is 24mm tall by 36mm wide, who knew?
-        let focalLength = CGFloat(frame.camera.intrinsics[1, 1]) * (filmHeight / frame.camera.imageResolution.height)
-        lensDatas.append(BrenLensData(
-            focalLength: focalLength,
-            sensorHeight: filmHeight,
-            orientation: UIDevice.current.orientation.rawValue
-        ))
+        let filmHeight = recordOrientation == .portrait ? 36.0 : 24.0
+        let sensorHeight = recordOrientation == .portrait ? frame.camera.imageResolution.width : frame.camera.imageResolution.height
+        let focalLength = CGFloat(frame.camera.intrinsics[1, 1]) * (filmHeight / sensorHeight)
+        lensDatas.append(BrenLensData(focalLength: focalLength, sensorHeight: filmHeight))
 
         // Capture video frames
         videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
@@ -330,12 +329,20 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
+        var videoX = videoSessionRGB!.videoResolutionX
+        var videoY = videoSessionRGB!.videoResolutionY
+        if recordOrientation == .portrait {
+            let tmp = videoX
+            videoX = videoY
+            videoY = tmp
+        }
         let renderData = BrenRenderData(
+            orientation: UInt(recordOrientation.rawValue),
             fps: fps,
             viewResolutionX: viewResolutionX,
             viewResolutionY: viewResolutionY,
-            videoResolutionX: videoSessionRGB!.videoResolutionX,
-            videoResolutionY: videoSessionRGB!.videoResolutionY
+            videoResolutionX: videoX,
+            videoResolutionY: videoY
         )
         let cameraFrames = BrenCameraFrames(
             timestamps: timestamps,
