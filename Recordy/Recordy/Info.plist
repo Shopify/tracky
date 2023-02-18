@@ -4,5 +4,7 @@
 <dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Uses the microphone to record audio when the user requests it.</string>
 </dict>
 </plist>

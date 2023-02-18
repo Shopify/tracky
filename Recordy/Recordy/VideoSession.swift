@@ -12,50 +12,102 @@ import AVFoundation
 import ARKit
 import CoreImage
 
-class VideoSession {
+class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     var fps: UInt
     var outputURL: URL
     var startTime: TimeInterval
+    var latestTime: CMTime
     var depth: Bool
+    var recordMic: Bool
     var videoResolutionX: UInt
     var videoResolutionY: UInt
     var assetWriter: AVAssetWriter
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor
     var ciContext: CIContext? = nil
 
-    init(pixelBuffer: CVPixelBuffer, outputURL: URL, startTime: TimeInterval, fps: UInt = 60, depth: Bool) {
+    var audioQueue: DispatchQueue? = nil
+    var audioSession: AVCaptureSession? = nil
+    var audioInput: AVAssetWriterInput? = nil
+    var audioOutput: AVCaptureAudioDataOutput? = nil
+
+    init(pixelBuffer: CVPixelBuffer, outputURL: URL, startTime: TimeInterval, fps: UInt = 60, depth: Bool, recordMic: Bool = false) {
         self.fps = fps
         self.outputURL = outputURL
         self.startTime = startTime
+        self.latestTime = CMTimeMakeWithSeconds(0, preferredTimescale: Int32(fps) * 10)
         self.depth = depth
         if (depth) {
             ciContext = CIContext()
         }
+        self.recordMic = recordMic
         videoResolutionX = UInt(CVPixelBufferGetWidthOfPlane(pixelBuffer, 0))
         videoResolutionY = UInt(CVPixelBufferGetHeightOfPlane(pixelBuffer, 0))
 
         assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: AVFileType.mp4)
 
-        let assetWriterInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: [
+        let assetWriterVideoInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: videoResolutionX,
             AVVideoHeightKey: videoResolutionY,
         ] as [String : Any])
-        assetWriterInput.expectsMediaDataInRealTime = true
-        assetWriter.add(assetWriterInput)
+        assetWriterVideoInput.expectsMediaDataInRealTime = true
+        assetWriter.add(assetWriterVideoInput)
 
-        assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterInput, sourcePixelBufferAttributes: [
+        assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterVideoInput, sourcePixelBufferAttributes: [
             kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB,
             kCVPixelBufferWidthKey as String: videoResolutionX,
             kCVPixelBufferHeightKey as String: videoResolutionY
         ])
-        
+
+        if recordMic {
+            audioQueue = DispatchQueue(label: "com.shopify.Recordy.AudioQueue")
+
+            let device: AVCaptureDevice = AVCaptureDevice.default(.builtInMicrophone, for: AVMediaType.audio, position: .unspecified)!
+
+            let session = AVCaptureSession()
+            //session.sessionPreset = .high
+            //session.usesApplicationAudioSession = true
+            //session.automaticallyConfiguresApplicationAudioSession = false
+            audioSession = session
+
+            do {
+                let input = try AVCaptureDeviceInput(device: device)
+                if session.canAddInput(input) == true {
+                    session.addInput(input)
+                }
+            } catch {
+                print("ERROR [tryAddAudioInput]: \(error)")
+            }
+
+            let output = AVCaptureAudioDataOutput()
+            audioOutput = output
+            if audioSession?.canAddOutput(output) == true {
+                audioSession?.addOutput(output)
+            }
+
+            audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: output.recommendedAudioSettingsForAssetWriter(writingTo: .mp4))
+            audioInput?.expectsMediaDataInRealTime = true
+        }
+
+        super.init()
+
+        if recordMic, let input = audioInput, let output = audioOutput, let queue = audioQueue {
+            if assetWriter.canAdd(input) {
+                assetWriter.add(input)
+            }
+            output.setSampleBufferDelegate(self, queue: queue)
+            queue.async { [weak self] in
+                self?.audioSession?.startRunning()
+            }
+        }
+
         assetWriter.startWriting()
         assetWriter.startSession(atSourceTime: CMTime.zero)
     }
 
     func addFrame(timestamp: TimeInterval, image: CVPixelBuffer) {
         let ts = CMTimeMakeWithSeconds(timestamp - startTime, preferredTimescale: Int32(fps) * 10)
+        latestTime = ts
         if !assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
             print("Not ready for more media data: \(ts)")
             return
@@ -81,11 +133,36 @@ class VideoSession {
     }
     
     func finish(completionHandler handler: (() -> Void)?) {
-        if let handle = handler {
-            assetWriter.finishWriting(completionHandler: handle)
-        } else {
-            assetWriter.finishWriting() {
-                // Nothing
+        assetWriter.finishWriting() {
+            if let hndl = handler {
+                hndl()
+            }
+        }
+    }
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let input = audioInput else { return }
+        audioQueue?.async { [weak self] in
+            guard let session = self?.audioSession else { return }
+            if session.isRunning, input.isReadyForMoreMediaData {
+
+                var count: CMItemCount = 0
+                CMSampleBufferGetSampleTimingInfoArray(sampleBuffer, entryCount: 0, arrayToFill: nil, entriesNeededOut: &count)
+                var info = [CMSampleTimingInfo](repeating: CMSampleTimingInfo(duration: CMTimeMake(value: 0, timescale: 0), presentationTimeStamp: CMTimeMake(value: 0, timescale: 0), decodeTimeStamp: CMTimeMake(value: 0, timescale: 0)), count: count)
+                CMSampleBufferGetSampleTimingInfoArray(sampleBuffer, entryCount: count, arrayToFill: &info, entriesNeededOut: &count)
+
+                guard let currentTime = self?.latestTime else { return }
+
+                for i in 0..<count {
+                    info[i].decodeTimeStamp = currentTime
+                    info[i].presentationTimeStamp = currentTime
+                }
+
+                var soundbuffer:CMSampleBuffer?
+                CMSampleBufferCreateCopyWithNewTiming(allocator: kCFAllocatorDefault, sampleBuffer: sampleBuffer, sampleTimingEntryCount: count, sampleTimingArray: &info, sampleBufferOut: &soundbuffer)
+                if let buf = soundbuffer {
+                    input.append(buf)
+                }
             }
         }
     }

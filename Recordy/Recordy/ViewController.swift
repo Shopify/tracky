@@ -19,6 +19,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var recordingButton: UIButton!
     @IBOutlet var fpsButton: UIButton!
     @IBOutlet var clearAllButton: UIButton!
+    @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
     
     var emptyNode: SCNNode!
@@ -33,6 +34,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var recordingDir: URL? = nil
     
     var fps: UInt = 60
+    var micActive: Bool = true
     var viewResolutionX: UInt = 1
     var viewResolutionY: UInt = 1
     var videoSessionRGB: VideoSession? = nil
@@ -186,6 +188,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         clearAllButton.isHidden = true
     }
 
+    @IBAction @objc func handleMicButtonTap() {
+        micActive = !micActive
+        micActiveButton.setImage(UIImage(systemName: micActive ? "mic.circle.fill" : "mic.slash.circle"), for: .normal)
+    }
+
     // MARK: Recording Functions
     
     func setWantsRecording() {
@@ -245,7 +252,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if FileManager.default.fileExists(atPath: outputURLSegmentation.path) {
             try? FileManager.default.removeItem(at: outputURLSegmentation)
         }
-        videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage, outputURL: outputURL, startTime: time, fps: fps, depth: false)
+        videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage, outputURL: outputURL, startTime: time, fps: fps, depth: false, recordMic: micActive)
         videoSessionDepth = VideoSession(pixelBuffer: sceneDepth, outputURL: outputURLDepth, startTime: time, fps: fps, depth: true)
         videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth, outputURL: outputURLSegmentation, startTime: time, fps: fps, depth: true)
         projectionMatrix = simd_float4x4(projectionTransform)
