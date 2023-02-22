@@ -1,7 +1,7 @@
 # Recordy
 
 <p align="center">
- <img src="https://github.com/Shopify/recordy/blob/main/readme_images/logo.png" width="600"/>
+ <img src="https://github.com/Shopify/recordy/blob/main/readme_images/logo.png" width="300"/>
  <p align="center">
   <em>Record an ARKit session for reconstruction in Blender</em>
  </p>
