@@ -148,7 +148,7 @@ class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
 
                 var count: CMItemCount = 0
                 CMSampleBufferGetSampleTimingInfoArray(sampleBuffer, entryCount: 0, arrayToFill: nil, entriesNeededOut: &count)
-                var info = [CMSampleTimingInfo](repeating: CMSampleTimingInfo(duration: CMTimeMake(value: 0, timescale: 0), presentationTimeStamp: CMTimeMake(value: 0, timescale: 0), decodeTimeStamp: CMTimeMake(value: 0, timescale: 0)), count: count)
+                var info = [CMSampleTimingInfo](repeating: CMSampleTimingInfo(duration: CMTime.zero, presentationTimeStamp: CMTime.zero, decodeTimeStamp: CMTime.zero), count: count)
                 CMSampleBufferGetSampleTimingInfoArray(sampleBuffer, entryCount: count, arrayToFill: &info, entriesNeededOut: &count)
 
                 guard let currentTime = self?.latestTime else { return }
