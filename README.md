@@ -93,6 +93,4 @@ You're all set! Now you can import your `.bren` files output by the Tracky app.
 
 ## Demo
 
-<p align="center">
- <video src="https://github.com/Shopify/tracky/blob/main/readme_images/TrackyDemo01.mp4?raw=true" />
-</p>
+https://user-images.githubusercontent.com/1228/221047283-e52dea84-1652-4238-b68a-1b0e5f07f640.mp4
