@@ -1,10 +1,10 @@
 bl_info = {
-    'name': 'Import: Recordy tracking shot (.bren)',
-    'description': 'Import AR tracking data recorded by the Recordy tracking app.',
+    'name': 'Import: Tracky tracking shot (.bren)',
+    'description': 'Import AR tracking data recorded by the Tracky tracking app.',
     'author': 'Shopify',
     'version': (1, 0, 0),
     'blender': (2, 80, 0),
-    'location': 'File > Import > Recordy Tracking Data (.bren)',
+    'location': 'File > Import > Tracky Tracking Data (.bren)',
     'warning': '',
     'category': 'Import-Export',
 }
@@ -168,7 +168,7 @@ def import_brenfile(context, filepath):
     
 
 class ImportBrenfile(Operator, ImportHelper):
-    """Import Brenfiles recorded by Recordy."""
+    """Import Brenfiles recorded by Tracky."""
 
     bl_idname = "shopify.brenfile"  # important since its how bpy.ops.import_test.some_data is constructed
     bl_label = "Brenfile (.bren)"
@@ -186,7 +186,7 @@ class ImportBrenfile(Operator, ImportHelper):
         return import_brenfile(context, self.filepath)
 
 def menu_func_import(self, context):
-    self.layout.operator(ImportBrenfile.bl_idname, text="Recordy Tracking Data (.bren)")
+    self.layout.operator(ImportBrenfile.bl_idname, text="Tracky Tracking Data (.bren)")
 
 def register():
     bpy.utils.register_class(ImportBrenfile)

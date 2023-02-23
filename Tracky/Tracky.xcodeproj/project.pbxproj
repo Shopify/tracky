@@ -19,7 +19,7 @@
 
 /* Begin PBXFileReference section */
 		841C6C0F299D7265005D3C1B /* empty.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = empty.usdz; sourceTree = "<group>"; };
-		8460235D297F41C100806DDE /* Recordy.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Recordy.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8460235D297F41C100806DDE /* Tracky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tracky.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84602360297F41C100806DDE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		84602364297F41C100806DDE /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		84602367297F41C100806DDE /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
@@ -44,7 +44,7 @@
 		84602354297F41C100806DDE = {
 			isa = PBXGroup;
 			children = (
-				8460235F297F41C100806DDE /* Recordy */,
+				8460235F297F41C100806DDE /* Tracky */,
 				8460235E297F41C100806DDE /* Products */,
 			);
 			sourceTree = "<group>";
@@ -52,12 +52,12 @@
 		8460235E297F41C100806DDE /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				8460235D297F41C100806DDE /* Recordy.app */,
+				8460235D297F41C100806DDE /* Tracky.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		8460235F297F41C100806DDE /* Recordy */ = {
+		8460235F297F41C100806DDE /* Tracky */ = {
 			isa = PBXGroup;
 			children = (
 				84602373297F493F00806DDE /* Info.plist */,
@@ -70,15 +70,15 @@
 				84602369297F41C200806DDE /* Assets.xcassets */,
 				841C6C0F299D7265005D3C1B /* empty.usdz */,
 			);
-			path = Recordy;
+			path = Tracky;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8460235C297F41C100806DDE /* Recordy */ = {
+		8460235C297F41C100806DDE /* Tracky */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 84602370297F41C200806DDE /* Build configuration list for PBXNativeTarget "Recordy" */;
+			buildConfigurationList = 84602370297F41C200806DDE /* Build configuration list for PBXNativeTarget "Tracky" */;
 			buildPhases = (
 				84602359297F41C100806DDE /* Sources */,
 				8460235A297F41C100806DDE /* Frameworks */,
@@ -88,9 +88,9 @@
 			);
 			dependencies = (
 			);
-			name = Recordy;
-			productName = Recordy;
-			productReference = 8460235D297F41C100806DDE /* Recordy.app */;
+			name = Tracky;
+			productName = Tracky;
+			productReference = 8460235D297F41C100806DDE /* Tracky.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -108,7 +108,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 84602358297F41C100806DDE /* Build configuration list for PBXProject "Recordy" */;
+			buildConfigurationList = 84602358297F41C100806DDE /* Build configuration list for PBXProject "Tracky" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -121,7 +121,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				8460235C297F41C100806DDE /* Recordy */,
+				8460235C297F41C100806DDE /* Tracky */,
 			);
 		};
 /* End PBXProject section */
@@ -297,7 +297,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6ZYNJZSY2C;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Recordy/Info.plist;
+				INFOPLIST_FILE = Tracky/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -312,7 +312,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.Recordy;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.Tracky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -329,7 +329,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 6ZYNJZSY2C;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Recordy/Info.plist;
+				INFOPLIST_FILE = Tracky/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -344,7 +344,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.Recordy;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.Tracky;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -355,7 +355,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		84602358297F41C100806DDE /* Build configuration list for PBXProject "Recordy" */ = {
+		84602358297F41C100806DDE /* Build configuration list for PBXProject "Tracky" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				8460236E297F41C200806DDE /* Debug */,
@@ -364,7 +364,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		84602370297F41C200806DDE /* Build configuration list for PBXNativeTarget "Recordy" */ = {
+		84602370297F41C200806DDE /* Build configuration list for PBXNativeTarget "Tracky" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				84602371297F41C200806DDE /* Debug */,

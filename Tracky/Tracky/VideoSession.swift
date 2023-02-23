@@ -1,6 +1,6 @@
 //
 //  VideoSession.swift
-//  Recordy
+//  Tracky
 //
 //  Created by Eric Florenzano on 2/3/23.
 //
@@ -60,7 +60,7 @@ class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         ])
 
         if recordMic {
-            audioQueue = DispatchQueue(label: "com.shopify.Recordy.AudioQueue")
+            audioQueue = DispatchQueue(label: "com.shopify.Tracky.AudioQueue")
 
             let device: AVCaptureDevice = AVCaptureDevice.default(.builtInMicrophone, for: AVMediaType.audio, position: .unspecified)!
 
