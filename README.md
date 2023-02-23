@@ -94,5 +94,5 @@ You're all set! Now you can import your `.bren` files output by the Recordy app.
 ## Demo
 
 <p align="center">
- <video src="https://github.com/Shopify/recordy/blob/main/readme_images/RecordyDemo01.mp4" />
+ <video src="https://github.com/Shopify/recordy/blob/main/readme_images/RecordyDemo01.mp4?raw=true" />
 </p>
