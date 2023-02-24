@@ -91,6 +91,33 @@ Blender plugin.
 You're all set! Now you can import your `.bren` files output by the Tracky app.
 
 
+## Usage
+
+1. Launch `Tracky` on your iOS device:
+
+<p align="center">
+ <img src="https://github.com/Shopify/tracky/blob/main/readme_images/launchtracky.gif" width="600"/>
+</p>
+
+2. Tap the record button (after waiting for the app to find tracking planes):
+
+<p align="center">
+ <img src="https://github.com/Shopify/tracky/blob/main/readme_images/taprecord.gif" width="600"/>
+</p>
+
+3. Use the `Files` app to navigate to the `Tracky` directory, and transfer your latest recording to a computer with Blender installed:
+
+<p align="center">
+ <img src="https://github.com/Shopify/tracky/blob/main/readme_images/transfertodesktop.gif" width="600"/>
+</p>
+
+4. Import the `.bren` file in Blender:
+
+<p align="center">
+ <img src="https://github.com/Shopify/tracky/blob/main/readme_images/importinblender.gif" width="600"/>
+</p>
+
+
 ## Demo
 
 https://user-images.githubusercontent.com/1228/221047283-e52dea84-1652-4238-b68a-1b0e5f07f640.mp4
