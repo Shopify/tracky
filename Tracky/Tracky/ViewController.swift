@@ -13,12 +13,16 @@ import ARKit
 import ModelIO
 import SceneKit.ModelIO
 
+let kAutofocusON = "AF ON"
+let kAutofocusOFF = "AF OFF"
+
 class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
     @IBOutlet var fpsButton: UIButton!
     @IBOutlet var hideButton: UIButton!
+    @IBOutlet var afButton: UIButton!
     @IBOutlet var clearAllButton: UIButton!
     @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
@@ -84,6 +88,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordingButton.isHidden = true
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+
+        afButton.setTitle(kAutofocusON, for: .normal)
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -96,10 +102,21 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         horizontalPlaneNodes.removeAll(keepingCapacity: true)
         verticalPlaneNodes.removeAll(keepingCapacity: true)
         
+        rebuildARSession()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+
+        // Pause the view's session
+        sceneView.session.pause()
+    }
+
+    func rebuildARSession() {
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
         configuration.planeDetection = [.horizontal, .vertical]
-        configuration.isAutoFocusEnabled = true
+        configuration.isAutoFocusEnabled = afButton.title(for: .normal) == kAutofocusON
         configuration.sceneReconstruction = .meshWithClassification
         configuration.environmentTexturing = .automatic
         configuration.isLightEstimationEnabled = true
@@ -112,18 +129,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.session.delegate = self
     }
     
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        
-        // Pause the view's session
-        sceneView.session.pause()
-    }
-    
     func hideUI() {
         recordButton.isHidden = true
         recordingButton.isHidden = true
         fpsButton.isHidden = true
         hideButton.isHidden = true
+        afButton.isHidden = true
         clearAllButton.isHidden = true
         micActiveButton.isHidden = true
         recordTimeLabel.isHidden = true
@@ -134,6 +145,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordingButton.isHidden = !isRecording
         fpsButton.isHidden = false
         hideButton.isHidden = false
+        afButton.isHidden = false
         clearAllButton.isHidden = false
         micActiveButton.isHidden = false
         recordTimeLabel.isHidden = false
@@ -183,7 +195,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     }
 
     // Button handler
-    
+
     @IBAction @objc func handleMainButtonTap() {
         recordButton.isHidden = !isRecording
         recordingButton.isHidden = isRecording
@@ -193,9 +205,15 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             setWantsRecording()
         }
     }
-    
+
     @IBAction @objc func handleHideButtonTap() {
         hideUI()
+    }
+
+    @IBAction @objc func handleAFButtonTap() {
+        let wasOn = afButton.title(for: .normal) == kAutofocusON
+        afButton.setTitle(wasOn ? kAutofocusOFF : kAutofocusON, for: .normal)
+        rebuildARSession()
     }
 
     @IBAction @objc func handleFpsButtonTap() {
