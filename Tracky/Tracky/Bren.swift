@@ -8,13 +8,35 @@
 import Foundation
 import simd
 
+// BrenWrapper represents one Brenfile, which is a JSON file with one object
+// whose keys map to the fields on this struct
+struct BrenWrapper: Codable {
+    // These are only marked as mutable so that Swift serializes them
+    var version_major: Int = 1
+    var version_minor: Int = 2
+    let render_data: BrenRenderData // Info about the rendering setup
+    let camera_frames: BrenCameraFrames // Frame-by-frame camera animation
+    let planes: [BrenPlane] // A list of discovered planes
+    let tracked_transforms: [[[Float]]] // A list of marked transform locations
+
+    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane], _ trackedTransforms: [simd_float4x4]) {
+        render_data = renderData
+        camera_frames = cameraFrames
+        self.planes = planes
+        tracked_transforms = trackedTransforms.map(create_transform)
+    }
+}
+
+// BrenRenderData contains systemic information about rendering,
+// such as resolutions and frames per second, captured at the start
+// of the recording session
 struct BrenRenderData: Codable {
-    let orientation: UInt
-    let fps: UInt
-    let view_resolution_x: UInt
-    let view_resolution_y: UInt
-    let video_resolution_x: UInt
-    let video_resolution_y: UInt
+    let orientation: UInt // The orientation of the phone
+    let fps: UInt // The desired rendering cadence
+    let view_resolution_x: UInt // The X resolution of the AR view on iOS
+    let view_resolution_y: UInt // The Y resolution of the AR view on iOS
+    let video_resolution_x: UInt // The X resolution of the background AR video asset
+    let video_resolution_y: UInt // The Y resolution of the background AR video asset
     
     init(orientation: UInt, fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, videoResolutionX: UInt, videoResolutionY: UInt) {
         self.orientation = orientation
@@ -26,10 +48,11 @@ struct BrenRenderData: Codable {
     }
 }
 
+// BrenCameraFrames is a structure-of-arrays containing the camera animation and parameters
 struct BrenCameraFrames: Codable {
-    let timestamps: [Float]
-    let transforms: [[[Float]]]
-    let datas: [[Float]]
+    let timestamps: [Float] // A list of timestamps that were recorded
+    let transforms: [[[Float]]] // The 4x4 camera transform matrix at each of those timestamps
+    let datas: [[Float]] // The camera lens configuration at each of those timestamps
     
     init(timestamps: [Float], transforms: [simd_float4x4], datas: [BrenLensData]) {
         self.timestamps = timestamps
@@ -38,9 +61,23 @@ struct BrenCameraFrames: Codable {
     }
 }
 
+// BrenLensData is a configuration of the camera's sensor at a point in time
+struct BrenLensData: Codable {
+    var data: [Float] // [focalLength, sensorHeight]
+
+    var focalLength: Float { get { return data[0] } set(value) { data[0] = value } }
+    var sensorHeight: Float { get { return data[1] } set(value) { data[1] = value } }
+
+    init(focalLength: CGFloat, sensorHeight: CGFloat) {
+        data = [Float(focalLength), Float(sensorHeight)]
+    }
+}
+
+// BrenPlane is a plane encoded into a flattened 4x4 float matrix and
+// an alignment string
 struct BrenPlane: Codable {
-    let transform: [[Float]]
-    let alignment: String
+    let transform: [[Float]] // The orientation of the plane as a 4x4 transform [[Float]]
+    let alignment: String // "horizontal" | "vertical"
     
     init(transform: simd_float4x4, alignment: String) {
         self.transform = create_transform(transform: transform)
@@ -48,24 +85,7 @@ struct BrenPlane: Codable {
     }
 }
 
-struct BrenWrapper: Codable {
-    var version_major: Int = 1 // only mutable so that it serializes
-    var version_minor: Int = 2 // only mutable so that it serializes
-    let render_data: BrenRenderData
-    let camera_frames: BrenCameraFrames
-    let planes: [BrenPlane]
-    let tracked_transforms: [[[Float]]]
-    
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane], _ trackedTransforms: [simd_float4x4]) {
-        render_data = renderData
-        camera_frames = cameraFrames
-        self.planes = planes
-        tracked_transforms = trackedTransforms.map(create_transform)
-    }
-}
-
-// Utility
-
+// create_transform creates a [[Float]] from a simd_float4x4
 func create_transform(transform tfm: simd_float4x4) -> [[Float]] {
     return [
         [tfm.columns.0.x, tfm.columns.1.x, tfm.columns.2.x, tfm.columns.3.x],
@@ -73,19 +93,4 @@ func create_transform(transform tfm: simd_float4x4) -> [[Float]] {
         [tfm.columns.0.z, tfm.columns.1.z, tfm.columns.2.z, tfm.columns.3.z],
         [tfm.columns.0.w, tfm.columns.1.w, tfm.columns.2.w, tfm.columns.3.w]
     ]
-}
-
-struct BrenLensData: Codable {
-    let data: [Float]
-    
-    var focalLength: Float { get { return data[0] } }
-    var sensorHeight: Float { get { return data[1] } }
-    
-    init(focalLength: CGFloat,
-         sensorHeight: CGFloat) {
-        data = [
-            Float(focalLength),
-            Float(sensorHeight),
-        ]
-    }
 }
