@@ -30,10 +30,16 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var emptyNode: SCNNode!
 
     var wantsRecording = false
-    var isRecording = false
     var sessionInProgress = false
     var recordStart: TimeInterval = 0
     var recordOrientation = UIDevice.current.orientation
+    var isRecording = false {
+        didSet {
+            DispatchQueue.main.async {
+                self.fpsButton.isEnabled = !self.isRecording
+            }
+        }
+    }
     
     var ourEpoch: Int = 0
     var recordingDir: URL? = nil
