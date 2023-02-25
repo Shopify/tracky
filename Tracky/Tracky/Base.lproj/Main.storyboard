@@ -88,13 +88,26 @@
                                     <action selector="handleMicButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="doZ-it-h3e"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Ed0-W8-BMc">
+                                <rect key="frame" x="166.66666666666666" y="70" width="60" height="35"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="60" id="n1R-zW-h4o"/>
+                                </constraints>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Hide"/>
+                                <connections>
+                                    <action selector="handleHideButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="Tpq-MD-AsY"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="dUK-vX-tLS" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="0cV-r9-AKT"/>
+                            <constraint firstItem="Ed0-W8-BMc" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="BHD-rJ-1ZD"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="RGa-ln-Ey1" secondAttribute="bottom" constant="45" id="G47-Nl-u7c"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" id="GsS-dJ-CKf"/>
+                            <constraint firstItem="Ed0-W8-BMc" firstAttribute="top" secondItem="fQZ-KI-GVf" secondAttribute="top" constant="11" id="UNM-Bt-uAa"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="bottom" secondItem="fQZ-KI-GVf" secondAttribute="bottom" id="VpT-BR-CcM"/>
                             <constraint firstItem="BrB-h1-WRS" firstAttribute="trailing" secondItem="fQZ-KI-GVf" secondAttribute="trailing" id="XyZ-9z-H8e"/>
                             <constraint firstItem="E3y-Jj-g43" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" constant="29" id="aM2-y4-L4D"/>
@@ -113,6 +126,7 @@
                     <connections>
                         <outlet property="clearAllButton" destination="RGa-ln-Ey1" id="GXW-Om-fqs"/>
                         <outlet property="fpsButton" destination="3bN-lF-9T5" id="z41-Ai-QAd"/>
+                        <outlet property="hideButton" destination="Ed0-W8-BMc" id="zrF-yV-i4H"/>
                         <outlet property="micActiveButton" destination="E3y-Jj-g43" id="3wF-rW-3oS"/>
                         <outlet property="recordButton" destination="kQw-HA-47T" id="0Fb-PR-csr"/>
                         <outlet property="recordTimeLabel" destination="pca-4E-CP1" id="Q7D-eZ-qph"/>

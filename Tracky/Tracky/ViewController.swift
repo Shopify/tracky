@@ -18,6 +18,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
     @IBOutlet var fpsButton: UIButton!
+    @IBOutlet var hideButton: UIButton!
     @IBOutlet var clearAllButton: UIButton!
     @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
@@ -118,9 +119,35 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.session.pause()
     }
     
+    func hideUI() {
+        recordButton.isHidden = true
+        recordingButton.isHidden = true
+        fpsButton.isHidden = true
+        hideButton.isHidden = true
+        clearAllButton.isHidden = true
+        micActiveButton.isHidden = true
+        recordTimeLabel.isHidden = true
+    }
+
+    func showUI() {
+        recordButton.isHidden = isRecording
+        recordingButton.isHidden = !isRecording
+        fpsButton.isHidden = false
+        hideButton.isHidden = false
+        clearAllButton.isHidden = false
+        micActiveButton.isHidden = false
+        recordTimeLabel.isHidden = false
+    }
+
     // MARK: - UITapGestureRecognizer
     
     @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+        // If the UI is hidden, then tapping unhides it and does nothing else
+        if hideButton.isHidden {
+            showUI()
+            return
+        }
+
         let loc = gesture.location(in: sceneView)
 
         // First, see if it hits anything in the scene
@@ -167,6 +194,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
     
+    @IBAction @objc func handleHideButtonTap() {
+        hideUI()
+    }
+
     @IBAction @objc func handleFpsButtonTap() {
         if fps > 30 {
             fps = 30
