@@ -326,6 +326,27 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         return planes
     }
     
+    func writeARWorldMap() {
+        guard let recordDir = recordingDir else {
+            print("ERROR: Cannot save brenfile with nil recordingDir")
+            return
+        }
+        let outputURL = URL(fileURLWithPath: "\(ourEpoch)-environment.arworldmap", relativeTo: recordDir)
+
+        sceneView.session.getCurrentWorldMap { (worldMap, error) in
+            guard let worldMap = worldMap else {
+                print("Could not get ARWorldMap to save: \(String(describing: error?.localizedDescription))")
+                return
+            }
+            guard let data = try? NSKeyedArchiver.archivedData(withRootObject: worldMap, requiringSecureCoding: true) else {
+                print("Could not encode ARWorldMap using NSKeyedArchiver")
+                return
+            }
+            try? data.write(to: outputURL)
+            print("Finished writing .arworldmap")
+        }
+    }
+
     func writeBrenfile() {
         guard let recordDir = recordingDir else {
             print("ERROR: Cannot save brenfile with nil recordingDir")
@@ -379,6 +400,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             self.videoSessionDepth?.finish {
                 self.videoSessionSegmentation?.finish {
                     print("Finished writing .mp4s")
+                    self.writeARWorldMap()
                     self.writeBrenfile()
                     self.videoSessionRGB = nil
                 }
