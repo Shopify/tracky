@@ -104,7 +104,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Remove any existing tracked AR stuff
         trackedNodes.forEach { $0.removeFromParentNode() }
         trackedNodes.removeAll()
-        //planeAnchors.removeAll(keepingCapacity: true)
         horizontalPlaneNodes.removeAll(keepingCapacity: true)
         verticalPlaneNodes.removeAll(keepingCapacity: true)
         
@@ -310,7 +309,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         cameraTransforms.removeAll(keepingCapacity: true)
         timestamps.removeAll(keepingCapacity: true)
         lensDatas.removeAll(keepingCapacity: true)
-        //planeAnchors.removeAll(keepingCapacity: false)
         recordStart = time
         recordOrientation = UIDevice.current.orientation
         sessionInProgress = false
