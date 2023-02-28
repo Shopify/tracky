@@ -153,6 +153,23 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
         plane_obj.display_type = 'WIRE'
         plane_obj.hide_render = True
         plane_obj.matrix_world = (UNITY2BLENDER @ mathutils.Matrix(plane['transform']))
+
+        # Make sure cycles visibility is also disabled, first using the older method of `cycles_visibility``
+        visibility = getattr(plane_obj, 'cycles_visibility', None)
+        if visibility is not None:
+            visibility.camera = False
+            visibility.diffuse = False
+            visibility.glossy = False
+            visibility.transmission = False
+            visibility.scatter = False
+
+        # Then using the newer method of `visible_*`
+        plane_obj.visible_camera = False
+        plane_obj.visible_diffuse = False
+        plane_obj.visible_glossy = False
+        plane_obj.visible_shadow = False
+        plane_obj.visible_transmission = False
+        plane_obj.visible_volume_scatter = False
     
     # Add tracked empty transforms
     for track_index, tfm in enumerate(tracked_transforms):
