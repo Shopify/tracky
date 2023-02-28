@@ -224,7 +224,6 @@ def create_node_graph(context, filepath, orientation):
 
     # Create first scale node
     scale_node_1 = nodes.new('CompositorNodeScale')
-    #scale_node_1.frame_method = 'STRETCH'
     scale_node_1.space = 'SCENE_SIZE'
     scale_node_1.location.x = -554.6401977539062
     scale_node_1.location.y = 616.1422119140625
