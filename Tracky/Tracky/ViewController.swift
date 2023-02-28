@@ -63,8 +63,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     
     let dateFormatter : DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .medium
+        formatter.dateFormat = "MM-dd-yyyy_HH-mm-ss"
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
@@ -282,7 +281,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         let dirname = dateFormatter.string(from: Date.now)
         ourEpoch = Int(Date.now.timeIntervalSince1970) - 1676000000
-        let recDir = URL(fileURLWithPath: "\(dirname) \(ourEpoch)", isDirectory: true, relativeTo: documentsPath)
+        let recDir = URL(fileURLWithPath: "\(dirname)_\(ourEpoch)", isDirectory: true, relativeTo: documentsPath)
         do {
             try FileManager.default.createDirectory(at: recDir, withIntermediateDirectories: true)
         } catch {
