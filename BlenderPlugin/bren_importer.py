@@ -41,9 +41,6 @@ ROTATE_LANDSCAPE_RIGHT = mathutils.Matrix.Rotation(RAD_LANDSCAPE_RIGHT, 4, 'Z')
 
 
 def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
-    if create_nodes:
-        create_node_graph(context, filepath)
-
     # Parse json data
     with open(filepath, 'r') as f:
         data = json.load(f)
@@ -60,9 +57,6 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
     resolution_x = render_data['video_resolution_x']
     resolution_y = render_data['video_resolution_y']
 
-    if len(camera_datas) == 0:
-        return
-
     camera_rotation = IDENTITY_MATRIX
     video_orientation = render_data['orientation']
     if video_orientation == ORIENTATION_PORTRAIT:
@@ -71,6 +65,9 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
         camera_rotation = ROTATE_LANDSCAPE_LEFT
     elif video_orientation == ROTATE_LANDSCAPE_RIGHT:
         camera_rotation = ROTATE_LANDSCAPE_RIGHT
+
+    if create_nodes:
+        create_node_graph(context, filepath, video_orientation)
 
     # Setup render settings
     fps = render_data.get('fps', 60)
@@ -188,7 +185,7 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
     return {'FINISHED'}
 
 
-def create_node_graph(context, filepath):
+def create_node_graph(context, filepath, orientation):
     scene = context.scene
     scene.use_nodes = True
 
@@ -209,15 +206,32 @@ def create_node_graph(context, filepath):
     video_node.location.x = -970.6415405273438
     video_node.location.y = 701.6468505859375
 
-    # Create first scale node
-    scale_node_1 = nodes.new('CompositorNodeScale')
-    scale_node_1.frame_method = 'STRETCH'
-    scale_node_1.location.x = -764.8800659179688
-    scale_node_1.location.y = 677.620361328125
+    # Create rotate node
+    rotate_node = nodes.new('CompositorNodeRotate')
+    rotate_node.filter_type = 'BILINEAR'
+    if orientation == ORIENTATION_PORTRAIT:
+        rotate_node.inputs['Degr'].default_value = math.radians(-90)
+    elif orientation == ORIENTATION_LANDSCAPE_RIGHT:
+        rotate_node.inputs['Degr'].default_value = math.radians(180)
+    rotate_node.location.x = -764.8800659179688
+    rotate_node.location.y = 677.620361328125
 
-    # Connect the output of the video clip into the scale node
+    # Connect the output of the video clip into the rotate node
     node_tree.links.new(
         video_node.outputs['Image'],
+        rotate_node.inputs['Image']
+    )
+
+    # Create first scale node
+    scale_node_1 = nodes.new('CompositorNodeScale')
+    #scale_node_1.frame_method = 'STRETCH'
+    scale_node_1.space = 'SCENE_SIZE'
+    scale_node_1.location.x = -554.6401977539062
+    scale_node_1.location.y = 616.1422119140625
+
+    # Connect the output of the rotate node into the scale node
+    node_tree.links.new(
+        rotate_node.outputs['Image'],
         scale_node_1.inputs['Image']
     )
 
