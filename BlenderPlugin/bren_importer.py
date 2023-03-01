@@ -357,7 +357,7 @@ def create_node_graph(context, filepath, orientation):
 
     # Create a frame node
     frame_node = nodes.new('NodeFrame')
-    frame_node.label = 'ADJUST THESE FOR THE SEGMENTATION MASK'
+    frame_node.label = 'ADJUST THESE FOR THE SEGMENTATION MASK SIZE AND FEATHER'
     frame_node.location.x = -352.728515625
     frame_node.location.y = -243.61328125
 
