@@ -66,6 +66,9 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
     elif video_orientation == ROTATE_LANDSCAPE_RIGHT:
         camera_rotation = ROTATE_LANDSCAPE_RIGHT
 
+    # Render settings that we want to switch all the time
+    context.scene.render.film_transparent = True
+
     if create_nodes:
         create_node_graph(context, filepath, video_orientation)
 
