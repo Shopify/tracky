@@ -26,13 +26,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var clearAllButton: UIButton!
     @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
-    
+
     var emptyNode: SCNNode!
 
+    var fps: UInt = 60
+    var viewResolutionX: UInt = 0
+    var viewResolutionY: UInt = 0
     var wantsRecording = false
-    var sessionInProgress = false
-    var recordStart: TimeInterval = 0
-    var recordOrientation = UIDevice.current.orientation
     var isRecording = false {
         didSet {
             DispatchQueue.main.async {
@@ -40,27 +40,43 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             }
         }
     }
-    
+
+    // A unique timestamp that helps end users identify all the files that tie together a session
     var ourEpoch: Int = 0
+    // The directory where all the files will be saved
     var recordingDir: URL? = nil
-    
-    var fps: UInt = 60
+
+    // A boolean indicating whether or not to record microphone audio when recording an AR session
     var micActive: Bool = true
-    var viewResolutionX: UInt = 1
-    var viewResolutionY: UInt = 1
+
+    // Helpers to help encode the data from an ARKit frames into video and .bren files
     var videoSessionRGB: VideoSession? = nil
     var videoSessionDepth: VideoSession? = nil
     var videoSessionSegmentation: VideoSession? = nil
-    
-    var timestamps: [Float] = []
+    var dataSession: DataSession? = nil
+
+    // SceneKit variables that we're tracking, like horizontal planes, or tracked nodes
     var projectionMatrix = matrix_identity_float4x4
-    var cameraTransforms: [simd_float4x4] = []
-    var lensDatas: [BrenLensData] = []
     var horizontalPlaneNodes: [SCNNode] = []
     var verticalPlaneNodes: [SCNNode] = []
     let trackedNodeBitmask: Int = 1 << 6
     var trackedNodes: [SCNNode] = []
-    
+
+    // The running time in seconds of a recording session (dispatches an update to the UI label)
+    var runTime: TimeInterval = 0 {
+        didSet {
+            let labelTime = NSInteger(runTime)
+            let ms = Int((runTime.truncatingRemainder(dividingBy: 1)) * 100)
+            let seconds = labelTime % 60
+            let minutes = (labelTime / 60) % 60
+            let labelText = String(format: "%02d:%02d.%02d", minutes, seconds, ms)
+            DispatchQueue.main.async {
+                self.recordTimeLabel.text = labelText
+            }
+        }
+    }
+
+    // We use this formatter to get a directory name from the current time
     let dateFormatter : DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd-yyyy_HH-mm-ss"
@@ -68,18 +84,23 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         return formatter
     }()
-    
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
+        // Load the "empty" node
         guard let emptyUrl = Bundle.main.url(forResource: "empty", withExtension: "usdz") else { fatalError() }
         emptyNode = SCNNode(mdlObject: MDLAsset(url: emptyUrl).object(at: 0))
         emptyNode.enumerateHierarchy { node, _rest in
+            // The tap target is bigger than the display, so we hide it but we assign it the appropriate
+            // bitmask that we can hit test against it later
             if node.name == "TapTarget" {
                 node.categoryBitMask = trackedNodeBitmask
                 node.isHidden = true
                 return
             }
+            // We don't want the "empty" model to have complex lighting, so we make sure all its materials
+            // have a lighting model of .constant
             node.geometry?.materials = (node.geometry?.materials ?? []).map({ mat in
                 mat.lightingModel = .constant
                 return mat
@@ -89,23 +110,27 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         // Set the view's delegate
         sceneView.delegate = self
 
+        // When the app starts, it's not recording
         recordButton.isHidden = false
         recordingButton.isHidden = true
-        
+
+        // Add a handler for non-UI taps (we'll raycast into the scene)
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
 
+        // Set the default title on the auto-focus button
         afButton.setTitle(kAutofocusON, for: .normal)
     }
-    
+
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        
+
         // Remove any existing tracked AR stuff
         trackedNodes.forEach { $0.removeFromParentNode() }
         trackedNodes.removeAll()
         horizontalPlaneNodes.removeAll(keepingCapacity: true)
         verticalPlaneNodes.removeAll(keepingCapacity: true)
-        
+
+        // Kick off the AR session (or rebuild it if it hasn't been started)
         rebuildARSession()
     }
 
@@ -132,7 +157,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         sceneView.session.run(configuration)
         sceneView.session.delegate = self
     }
-    
+
+    // Hides all visible UI elements and only leaves the SceneKit view active
     func hideUI() {
         recordButton.isHidden = true
         recordingButton.isHidden = true
@@ -144,6 +170,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordTimeLabel.isHidden = true
     }
 
+    // Shows all possible appropriate UI elements
     func showUI() {
         recordButton.isHidden = isRecording
         recordingButton.isHidden = !isRecording
@@ -155,51 +182,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordTimeLabel.isHidden = false
     }
 
-    // MARK: - UITapGestureRecognizer
-    
-    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-        // If the UI is hidden, then tapping unhides it and does nothing else
-        if hideButton.isHidden {
-            showUI()
-            return
-        }
+    // MARK: - Button handlers
 
-        let loc = gesture.location(in: sceneView)
-
-        // First, see if it hits anything in the scene
-        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
-            var tmpNode = hitResult.node
-            while let tmp = tmpNode.parent, tmp.parent != nil {
-                tmpNode = tmp
-            }
-            if let idx = trackedNodes.firstIndex(of: tmpNode) {
-                trackedNodes.remove(at: idx)
-                tmpNode.removeFromParentNode()
-                clearAllButton.isHidden = trackedNodes.count == 0
-                return
-            }
-        }
-        
-        // Otherwise, raycast out into the real world and place a new tracked node there
-        guard let query = sceneView.raycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any) else {
-            // In a production app we should provide feedback to the user here
-            print("Couldn't create a query!")
-            return
-        }
-        guard let result = sceneView.session.raycast(query).first else {
-            print("Couldn't match the raycast with a plane.")
-            return
-        }
-
-        let node = emptyNode.clone()
-        sceneView.scene.rootNode.addChildNode(node)
-        node.simdTransform = result.worldTransform
-        trackedNodes.append(node)
-        clearAllButton.isHidden = false
-    }
-
-    // Button handler
-
+    // Toggles between recording and saving states
     @IBAction @objc func handleMainButtonTap() {
         recordButton.isHidden = !isRecording
         recordingButton.isHidden = isRecording
@@ -210,16 +195,19 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
 
+    // Hides the UI
     @IBAction @objc func handleHideButtonTap() {
         hideUI()
     }
 
+    // Toggles between autofocus on and off, and then cleanly transitions the AR session
     @IBAction @objc func handleAFButtonTap() {
         let wasOn = afButton.title(for: .normal) == kAutofocusON
         afButton.setTitle(wasOn ? kAutofocusOFF : kAutofocusON, for: .normal)
         rebuildARSession()
     }
 
+    // Toggles between 30 and 60fps target (60fps target may not always be achievable at runtime)
     @IBAction @objc func handleFpsButtonTap() {
         if fps > 30 {
             fps = 30
@@ -231,37 +219,40 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         fpsButton.setTitle("\(fps)fps", for: .normal)
     }
 
+    // Clears all tracked nodes
     @IBAction @objc func handleClearAllTap() {
         trackedNodes.forEach { $0.removeFromParentNode() }
         trackedNodes.removeAll()
         clearAllButton.isHidden = true
     }
 
+    // Toggles between whether the microphone will be active or disabled during recording
     @IBAction @objc func handleMicButtonTap() {
         micActive = !micActive
         micActiveButton.setImage(UIImage(systemName: micActive ? "mic.circle.fill" : "mic.slash.circle"), for: .normal)
     }
 
-    // MARK: Recording Functions
-    
+    // MARK: - Recording Functions
+
+    // Initiate the recording process, starting by capturing data from things that can only be
+    // captured from the main thread, and then setting the `wantsRecording` boolean to true
+    // in order to greenlight the next stage of the recording process
     func setWantsRecording() {
-        // Note: these calls exist here because of and also imply that
-        //       this method will only be called from the main thread.
-        let siz = view.frame.size
-        let scl = UIScreen.main.scale
         fps = UInt(sceneView.preferredFramesPerSecond)
         if fps == 0 {
             fps = 60 // idk
         }
-        viewResolutionX = UInt(siz.width * scl)
-        viewResolutionY = UInt(siz.height * scl)
-        
-        wantsRecording = true
+        let scl = UIScreen.main.scale
+        viewResolutionX = UInt(view.frame.size.width * scl)
+        viewResolutionY = UInt(view.frame.size.height * scl)
 
-        recordTimeLabel.text = "0:00:00"
         recordTimeLabel.isHidden = false
+        runTime = 0
+
+        wantsRecording = true
     }
-    
+
+    // Starts the actual recording processes (not on UI thread)
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
         guard let projectionTransform = renderer.pointOfView?.camera?.projectionTransform else {
             print("ERROR: Could not get renderer pov camera")
@@ -289,38 +280,40 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         recordingDir = recDir
-        let outputURL = URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir)
-        if FileManager.default.fileExists(atPath: outputURL.path) {
-            try? FileManager.default.removeItem(at: outputURL)
-        }
-        let outputURLDepth = URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir)
-        if FileManager.default.fileExists(atPath: outputURLDepth.path) {
-            try? FileManager.default.removeItem(at: outputURLDepth)
-        }
-        let outputURLSegmentation = URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir)
-        if FileManager.default.fileExists(atPath: outputURLSegmentation.path) {
-            try? FileManager.default.removeItem(at: outputURLSegmentation)
-        }
-        videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage, outputURL: outputURL, startTime: time, fps: fps, depth: false, recordMic: micActive)
-        videoSessionDepth = VideoSession(pixelBuffer: sceneDepth, outputURL: outputURLDepth, startTime: time, fps: fps, depth: true)
-        videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth, outputURL: outputURLSegmentation, startTime: time, fps: fps, depth: true)
-        projectionMatrix = simd_float4x4(projectionTransform)
-        cameraTransforms.removeAll(keepingCapacity: true)
-        timestamps.removeAll(keepingCapacity: true)
-        lensDatas.removeAll(keepingCapacity: true)
-        recordStart = time
-        recordOrientation = UIDevice.current.orientation
-        sessionInProgress = false
 
+        let dat = DataSession(startTime: time,
+                              fps: fps,
+                              viewResolutionX: viewResolutionX,
+                              viewResolutionY: viewResolutionY,
+                              outputURL: URL(fileURLWithPath: "\(ourEpoch)-camera.bren", relativeTo: recDir))
+        dataSession = dat
+
+        videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage,
+                                       startTime: time,
+                                       fps: dat.fps,
+                                       depth: false,
+                                       recordMic: micActive,
+                                       outputURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir))
+        videoSessionDepth = VideoSession(pixelBuffer: sceneDepth,
+                                         startTime: time,
+                                         fps: dat.fps,
+                                         depth: true,
+                                         recordMic: false,
+                                         outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
+        videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
+                                                startTime: time,
+                                                fps: dat.fps,
+                                                depth: true,
+                                                recordMic: false,
+                                                outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
+
+        projectionMatrix = simd_float4x4(projectionTransform)
         isRecording = true
     }
-    
+
+    // Captures an AR frame into the recording session
     func updateRecording(_ renderer: SCNSceneRenderer, _ time: TimeInterval) {
-        guard let frame = sceneView.session.currentFrame,
-              let pov = renderer.pointOfView,
-              let _ = frame.estimatedDepthData else {
-            return
-        }
+        guard let frame = sceneView.session.currentFrame else { return }
         
         if wantsRecording {
             wantsRecording = false
@@ -330,26 +323,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
 
-        let runTime = time - recordStart
+        guard let dataSession = dataSession,
+              let pov = renderer.pointOfView else { return }
 
-        // Count-up label
-        let labelTime = NSInteger(runTime)
-        let ms = Int((runTime.truncatingRemainder(dividingBy: 1)) * 100)
-        let seconds = labelTime % 60
-        let minutes = (labelTime / 60) % 60
-        let labelText = String(format: "%02d:%02d.%02d", minutes, seconds, ms)
-        DispatchQueue.main.async {
-            self.recordTimeLabel.text = labelText
-        }
-
-        // Saved data for .bren file
-        timestamps.append(Float(runTime))
-        cameraTransforms.append(pov.simdTransform)
-
-        let filmHeight = recordOrientation == .portrait ? 36.0 : 24.0
-        let sensorHeight = recordOrientation == .portrait ? frame.camera.imageResolution.width : frame.camera.imageResolution.height
-        let focalLength = CGFloat(frame.camera.intrinsics[1, 1]) * (filmHeight / sensorHeight)
-        lensDatas.append(BrenLensData(focalLength: focalLength, sensorHeight: filmHeight))
+        dataSession.addFrame(time: time, cameraTransform: pov.simdTransform, resolution: frame.camera.imageResolution, intrinsics: frame.camera.intrinsics)
 
         // Capture video frames
         videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
@@ -359,25 +336,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if let estimatedDepth = frame.estimatedDepthData {
             videoSessionSegmentation?.addFrame(timestamp: time, image: estimatedDepth)
         }
+
+        runTime = dataSession.runTime
     }
-    
-    private func gatherBrenPlanes() -> [BrenPlane] {
-        var planes: [BrenPlane] = []
-        for extentNode in horizontalPlaneNodes {
-            planes.append(BrenPlane(
-                transform: extentNode.simdWorldTransform,
-                alignment: "horizontal"
-            ))
-        }
-        for extentNode in verticalPlaneNodes {
-            planes.append(BrenPlane(
-                transform: extentNode.simdWorldTransform,
-                alignment: "vertical"
-            ))
-        }
-        return planes
-    }
-    
+
+    // Grabs the ARWorldMap from the ARKit session and writes it to the recording directory
     func writeARWorldMap() {
         guard let recordDir = recordingDir else {
             print("ERROR: Cannot save brenfile with nil recordingDir")
@@ -399,55 +362,31 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
 
+    // Gathers all the available information and writes out the .bren file with all the tracked transforms
     func writeBrenfile() {
-        guard let recordDir = recordingDir else {
-            print("ERROR: Cannot save brenfile with nil recordingDir")
+        guard let dataSession = dataSession,
+              let videoSessionRGB = videoSessionRGB else {
             return
         }
         
-        var videoX = videoSessionRGB!.videoResolutionX
-        var videoY = videoSessionRGB!.videoResolutionY
-        if recordOrientation == .portrait {
-            let tmp = videoX
-            videoX = videoY
-            videoY = tmp
+        var planes: [BrenPlane] = []
+        for extentNode in horizontalPlaneNodes {
+            planes.append(BrenPlane(transform: extentNode.simdWorldTransform, alignment: "horizontal"))
         }
-        let renderData = BrenRenderData(
-            orientation: UInt(recordOrientation.rawValue),
-            fps: fps,
-            viewResolutionX: viewResolutionX,
-            viewResolutionY: viewResolutionY,
-            videoResolutionX: videoX,
-            videoResolutionY: videoY
-        )
-        let cameraFrames = BrenCameraFrames(
-            timestamps: timestamps,
-            transforms: cameraTransforms,
-            datas: lensDatas
-        )
-        let planes = gatherBrenPlanes()
+        for extentNode in verticalPlaneNodes {
+            planes.append(BrenPlane(transform: extentNode.simdWorldTransform, alignment: "vertical"))
+        }
         let trackedTransforms = trackedNodes.map { $0.simdTransform }
-        let data = BrenWrapper(renderData, cameraFrames, planes, trackedTransforms)
-        let jsonEncoder = JSONEncoder()
-        guard let jsonData = try? jsonEncoder.encode(data),
-              let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
-            print("ERROR: Could not encode json data")
-            return
-        }
-        
-        let outputURL = URL(fileURLWithPath: "\(ourEpoch)-camera.bren", relativeTo: recordDir)
-        do {
-            try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
-            print("Finished writing .bren")
-        } catch {
-            // TODO: Print error message
+
+        if !dataSession.write(videoSessionRGB: videoSessionRGB, planes: planes, trackedTransforms: trackedTransforms) {
+            print("Could not write .bren file")
         }
     }
-    
+
+    // Stops the recording process and writes out all the relevant files
     func stopRecording() {
         recordTimeLabel.isHidden = true
         isRecording = false
-        sessionInProgress = false
         videoSessionRGB?.finish {
             self.videoSessionDepth?.finish {
                 self.videoSessionSegmentation?.finish {
@@ -459,8 +398,53 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             }
         }
     }
+
+    // MARK: - UITapGestureRecognizer
+
+    // Handle non-UI taps
+    @objc func handleTap(_ gesture: UITapGestureRecognizer) {
+        // If the UI is hidden, then tapping unhides it and does nothing else
+        if hideButton.isHidden {
+            showUI()
+            return
+        }
+
+        let loc = gesture.location(in: sceneView)
+
+        // First, see if it hits anything in the scene
+        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
+            var tmpNode = hitResult.node
+            while let tmp = tmpNode.parent, tmp.parent != nil {
+                tmpNode = tmp
+            }
+            if let idx = trackedNodes.firstIndex(of: tmpNode) {
+                trackedNodes.remove(at: idx)
+                tmpNode.removeFromParentNode()
+                clearAllButton.isHidden = trackedNodes.count == 0
+                return
+            }
+        }
+
+        // Otherwise, raycast out into the real world and place a new tracked node there
+        guard let query = sceneView.raycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any) else {
+            // In a production app we should provide feedback to the user here
+            print("Couldn't create a query!")
+            return
+        }
+        guard let result = sceneView.session.raycast(query).first else {
+            print("Couldn't match the raycast with a plane.")
+            return
+        }
+
+        let node = emptyNode.clone()
+        sceneView.scene.rootNode.addChildNode(node)
+        node.simdTransform = result.worldTransform
+        trackedNodes.append(node)
+        clearAllButton.isHidden = false
+    }
+
     // MARK: - ARSessionDelegate
-    
+
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
     }
     
@@ -469,7 +453,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     func renderer(_ renderer: SCNSceneRenderer, updateAtTime time: TimeInterval) {
         updateRecording(renderer, time)
     }
-    
+
+    // Whenever a new ARKit tracked plane is detected, add it to the scene
     func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
         guard let planeAnchor = anchor as? ARPlaneAnchor else { return }
         
@@ -499,7 +484,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             horizontalPlaneNodes.append(extentNode)
         }
     }
-    
+
+    // Whenever a ARKit tracked plane is updated, update its SceneKit node to match
     func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
         guard let planeAnchor = anchor as? ARPlaneAnchor,
             let extentNode = node.childNodes.first
@@ -510,7 +496,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         extentNode.simdScale.x = planeAnchor.planeExtent.width
         extentNode.simdScale.y = planeAnchor.planeExtent.height
     }
-    
+
+    // Whenever ARKit loses track of a plane, remove it from SceneKit and our tracking as well
     func renderer(_ renderer: SCNSceneRenderer, didRemove node: SCNNode, for anchor: ARAnchor) {
         guard let _ = anchor as? ARPlaneAnchor, let extentNode = node.childNodes.first else { return }
         var found = false

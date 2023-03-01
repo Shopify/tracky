@@ -12,6 +12,7 @@ import AVFoundation
 import ARKit
 import CoreImage
 
+// Helper class for capturing an ARKit video stream to disk
 class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     var fps: UInt
     var outputURL: URL
@@ -30,7 +31,7 @@ class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     var audioInput: AVAssetWriterInput? = nil
     var audioOutput: AVCaptureAudioDataOutput? = nil
 
-    init(pixelBuffer: CVPixelBuffer, outputURL: URL, startTime: TimeInterval, fps: UInt = 60, depth: Bool, recordMic: Bool = false) {
+    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, depth: Bool, recordMic: Bool = false, outputURL: URL) {
         // Assign all of the properties that were passed in to the initializer
         self.fps = fps
         self.outputURL = outputURL
