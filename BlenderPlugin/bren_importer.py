@@ -69,6 +69,15 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
     if create_nodes:
         create_node_graph(context, filepath, video_orientation)
 
+        # Disable any filmic or custom color management and switch to standard
+        context.scene.view_settings.view_transform = 'Standard'
+
+        # Set defaults for the video encoding outputs
+        context.scene.render.filepath = filepath.replace('-camera.bren', '-blender-render.mp4')
+        context.scene.render.image_settings.file_format = 'FFMPEG'
+        context.scene.render.ffmpeg.constant_rate_factor = 'HIGH'
+        context.scene.render.ffmpeg.format = 'MPEG4'
+
     # Setup render settings
     fps = render_data.get('fps', 60)
     context.scene.render.fps = fps
