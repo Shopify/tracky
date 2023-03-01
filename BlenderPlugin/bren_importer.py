@@ -41,6 +41,8 @@ ROTATE_LANDSCAPE_RIGHT = mathutils.Matrix.Rotation(RAD_LANDSCAPE_RIGHT, 4, 'Z')
 
 
 def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
+    scene = context.scene
+
     # Parse json data
     with open(filepath, 'r') as f:
         data = json.load(f)
@@ -67,29 +69,30 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
         camera_rotation = ROTATE_LANDSCAPE_RIGHT
 
     # Render settings that we want to switch all the time
-    context.scene.render.film_transparent = True
+    scene.render.film_transparent = True
+    scene.render.ffmpeg.audio_codec = 'AAC'
 
     if create_nodes:
         create_node_graph(context, filepath, video_orientation)
 
         # Disable any filmic or custom color management and switch to standard
-        context.scene.view_settings.view_transform = 'Standard'
+        scene.view_settings.view_transform = 'Standard'
 
         # Set defaults for the video encoding outputs
-        context.scene.render.filepath = filepath.replace('-camera.bren', '-blender-render.mp4')
-        context.scene.render.image_settings.file_format = 'FFMPEG'
-        context.scene.render.ffmpeg.constant_rate_factor = 'HIGH'
-        context.scene.render.ffmpeg.format = 'MPEG4'
+        scene.render.filepath = filepath.replace('-camera.bren', '-blender-render.mp4')
+        scene.render.image_settings.file_format = 'FFMPEG'
+        scene.render.ffmpeg.constant_rate_factor = 'HIGH'
+        scene.render.ffmpeg.format = 'MPEG4'
 
     # Setup render settings
     fps = render_data.get('fps', 60)
-    context.scene.render.fps = fps
-    context.scene.render.resolution_x = resolution_x
-    context.scene.render.resolution_y = resolution_y
+    scene.render.fps = fps
+    scene.render.resolution_x = resolution_x
+    scene.render.resolution_y = resolution_y
 
     # Setup scene settings
     if len(camera_timestamps) > 0:
-        context.scene.frame_end = max(int(math.ceil(camera_timestamps[-1] * fps)), 1)
+        scene.frame_end = max(int(math.ceil(camera_timestamps[-1] * fps)), 1)
 
     bpy.ops.object.add()
     bren_root = context.object
@@ -119,6 +122,13 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
         background.rotation = RAD_LANDSCAPE_RIGHT
     cam.data.show_background_images = True
 
+    # Ensure that there's a sequencer
+    if not scene.sequence_editor:
+        scene.sequence_editor_create()
+
+    # Add the video background audio clip to the sequencer
+    scene.sequence_editor.sequences.new_sound('background_audio', video_filepath, 1, 1)
+
     # Switch the 3D windows to view through the new camera with the background
     for screen in context.workspace.screens:
         for area in screen.areas:
@@ -139,7 +149,7 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
 
         frameidx = max(int(math.ceil(timestamp * fps)), 1)
 
-        context.scene.frame_set(frameidx)
+        scene.frame_set(frameidx)
 
         cam.data.lens = focal_length
         cam.data.sensor_height = sensor_height
@@ -151,7 +161,7 @@ def import_brenfile(context, filepath, create_nodes=True, switch_to_cam=False):
         bpy.ops.anim.keyframe_insert_menu(type='BUILTIN_KSI_LocRot')
 
     # Rewind back to the first frame
-    context.scene.frame_set(1)
+    scene.frame_set(1)
 
     # Add planes
     for plane_index, plane in enumerate(planes):
