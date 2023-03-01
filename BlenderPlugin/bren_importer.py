@@ -225,8 +225,8 @@ def create_node_graph(context, filepath, orientation):
     video_filepath = filepath.replace('-camera.bren', '-video.mp4')
     video_node = nodes.new('CompositorNodeMovieClip')
     video_node.clip = bpy.data.movieclips.load(filepath=video_filepath)
-    video_node.location.x = -970.6415405273438
-    video_node.location.y = 701.6468505859375
+    video_node.location.x = -1209.803955078125
+    video_node.location.y = 692.0598754882812
 
     # Create rotate node
     rotate_node = nodes.new('CompositorNodeRotate')
@@ -235,8 +235,8 @@ def create_node_graph(context, filepath, orientation):
         rotate_node.inputs['Degr'].default_value = math.radians(-90)
     elif orientation == ORIENTATION_LANDSCAPE_RIGHT:
         rotate_node.inputs['Degr'].default_value = math.radians(180)
-    rotate_node.location.x = -764.8800659179688
-    rotate_node.location.y = 677.620361328125
+    rotate_node.location.x = -967.3910522460938
+    rotate_node.location.y = 680.869384765625
 
     # Connect the output of the video clip into the rotate node
     node_tree.links.new(
@@ -247,8 +247,8 @@ def create_node_graph(context, filepath, orientation):
     # Create first scale node
     scale_node_1 = nodes.new('CompositorNodeScale')
     scale_node_1.space = 'SCENE_SIZE'
-    scale_node_1.location.x = -554.6401977539062
-    scale_node_1.location.y = 616.1422119140625
+    scale_node_1.location.x = -773.644287109375
+    scale_node_1.location.y = 665.2340698242188
 
     # Connect the output of the rotate node into the scale node
     node_tree.links.new(
@@ -258,8 +258,8 @@ def create_node_graph(context, filepath, orientation):
 
     # Create a mix node
     mix_node_1 = nodes.new('CompositorNodeMixRGB')
-    mix_node_1.location.x = 722.7017822265625
-    mix_node_1.location.y = 130.2596435546875
+    mix_node_1.location.x = 1133.854736328125
+    mix_node_1.location.y = 392.45819091796875
 
     # Connect the output of the first scale node into the first image input of
     # the mix node
@@ -271,8 +271,8 @@ def create_node_graph(context, filepath, orientation):
     # Create a composite node
     composite_node = nodes.new('CompositorNodeComposite')
     composite_node.use_alpha = False
-    composite_node.location.x = 1001.59716796875
-    composite_node.location.y = 216.81689453125
+    composite_node.location.x = 1379.92529296875
+    composite_node.location.y = 493.9861145019531
 
     # Connect the output of the mix node to the composite node
     node_tree.links.new(
@@ -283,8 +283,8 @@ def create_node_graph(context, filepath, orientation):
     # Create a viewer node and set it to use alpha
     viewer_node = nodes.new('CompositorNodeViewer')
     viewer_node.use_alpha = True
-    viewer_node.location.x = 1006.509765625
-    viewer_node.location.y = 32.799072265625
+    viewer_node.location.x = 1384.837890625
+    viewer_node.location.y = 309.9682922363281
 
     # Connect the output of the mix node to the viewer node
     node_tree.links.new(
@@ -294,20 +294,34 @@ def create_node_graph(context, filepath, orientation):
 
     # Create an RLayers node
     rlayers_node = nodes.new('CompositorNodeRLayers')
-    rlayers_node.location.x = -1076.2921142578125
-    rlayers_node.location.y = 261.254150390625
+    rlayers_node.location.x = -1213.6219482421875
+    rlayers_node.location.y = 271.8380432128906
 
     # Create a multiply node
     multiply_node = nodes.new('CompositorNodeMixRGB')
     multiply_node.blend_type = 'MULTIPLY'
     multiply_node.inputs['Fac'].default_value = 1
-    multiply_node.location.x = 501.7509765625
-    multiply_node.location.y = -67.72088623046875
+    multiply_node.location.x = 435.77789306640625
+    multiply_node.location.y = -66.51539611816406
+
+    # Create a small frame node
+    small_frame_node = nodes.new('NodeFrame')
+    small_frame_node.label = 'TURN SEGMENTATION ON AND OFF'
+    small_frame_node.location.x = 778.8148193359375
+    small_frame_node.location.y = 149.1981964111328
+
+    # Create segmentation mix node
+    segmentation_mix_node = nodes.new('CompositorNodeMixRGB')
+    segmentation_mix_node.parent = small_frame_node
+    segmentation_mix_node.blend_type = 'MIX'
+    segmentation_mix_node.inputs['Fac'].default_value = 0
+    segmentation_mix_node.location.x = -30.51397705078125
+    segmentation_mix_node.location.y = -17.452789306640625
 
     # Connect the output of the multiply node to the mix node
     node_tree.links.new(
         multiply_node.outputs['Image'],
-        mix_node_1.inputs[0]
+        segmentation_mix_node.inputs[2]
     )
 
     # Connect the image output of the RLayers node to the mix node
@@ -322,30 +336,57 @@ def create_node_graph(context, filepath, orientation):
         multiply_node.inputs[2]
     )
 
+    # Connect the alpha output of the RLayers node to the segmentation mix node
+    node_tree.links.new(
+        rlayers_node.outputs['Alpha'],
+        segmentation_mix_node.inputs[1]
+    )
+
+    # Connect the image output of the segmentation mix node to the final mix node
+    node_tree.links.new(
+        segmentation_mix_node.outputs['Image'],
+        mix_node_1.inputs['Fac']
+    )
+
     # Create segmentation node and load its movie clip
     segmentation_filepath = filepath.replace('-camera.bren', '-segmentation.mp4')
     segmentation_node = nodes.new('CompositorNodeMovieClip')
     segmentation_node.clip = bpy.data.movieclips.load(filepath=segmentation_filepath)
-    segmentation_node.location.x = -976.0883178710938
-    segmentation_node.location.y = -304.98193359375
+    segmentation_node.location.x = -1218.925537109375
+    segmentation_node.location.y = -288.89691162109375
 
     # Create a frame node
     frame_node = nodes.new('NodeFrame')
     frame_node.label = 'ADJUST THESE FOR THE SEGMENTATION MASK'
-    frame_node.location.x = -314.157958984375
-    frame_node.location.y = -256.0308837890625
+    frame_node.location.x = -352.728515625
+    frame_node.location.y = -243.61328125
+
+    # SECOND FRAME NODE (778.8148193359375, 149.1981964111328)
 
     # Create second scale node
     scale_node_2 = nodes.new('CompositorNodeScale')
-    scale_node_2.parent = frame_node
+    scale_node_2.space = 'RENDER_SIZE'
     scale_node_2.frame_method = 'STRETCH'
-    scale_node_2.location.x = -426.41912841796875
-    scale_node_2.location.y = -62.532958984375
+    scale_node_2.location.x = -999.0
+    scale_node_2.location.y = -310.29962158203125
 
     # Connect the output of the segmentation clip into the scale node
     node_tree.links.new(
         segmentation_node.outputs['Image'],
         scale_node_2.inputs['Image']
+    )
+
+    # Create third scale node
+    scale_node_3 = nodes.new('CompositorNodeScale')
+    scale_node_3.parent = frame_node
+    scale_node_3.space = 'RELATIVE'
+    scale_node_3.location.x = -426.41912841796875
+    scale_node_3.location.y = -62.532958984375
+
+    # Connect the output of the second scale node into the third scale node
+    node_tree.links.new(
+        scale_node_2.outputs['Image'],
+        scale_node_3.inputs['Image']
     )
 
     # Create an exposure node
@@ -357,7 +398,7 @@ def create_node_graph(context, filepath, orientation):
 
     # Connect the output of the scale node into the exposure node
     node_tree.links.new(
-        scale_node_2.outputs['Image'],
+        scale_node_3.outputs['Image'],
         exposure_node.inputs['Image']
     )
 
