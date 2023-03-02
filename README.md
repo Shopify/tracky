@@ -21,7 +21,7 @@ would look in an ARKit session.
 ## Prerequisites
 
 * XCode 14.2 or higher
-* Blender 2.8 or higher
+* Blender 2.92 or higher
 * An iPhone or iPad with LiDAR
 
 
