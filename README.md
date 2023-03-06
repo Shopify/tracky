@@ -1,11 +1,7 @@
 # Tracky
+### Record an ARKit session for reconstruction in Blender
 
-<p align="center">
- <img src="https://github.com/Shopify/tracky/blob/main/readme_images/logo.png" width="300"/>
- <p align="center">
-  <em>Record an ARKit session for reconstruction in Blender</em>
- </p>
-</p>
+https://user-images.githubusercontent.com/1228/223236400-98469d59-504d-4276-8221-45e035c031fb.mp4
 
 
 ## Background
