@@ -1,7 +1,7 @@
 # Tracky
 ### Record an ARKit session for reconstruction in Blender
 
-[![Longer Tutorial Video]([https://user-images.githubusercontent.com/1228/224113489-f11becd8-9a2b-4afd-bbd5-87810c8d5dc5.png](https://user-images.githubusercontent.com/1228/224115509-f01d0324-96c7-4e70-a7cf-e4b2c99cd96e.png))](https://www.youtube.com/watch?v=siBtKaGj0uc)
+[![Longer Tutorial Video](https://user-images.githubusercontent.com/1228/224115509-f01d0324-96c7-4e70-a7cf-e4b2c99cd96e.png)](https://www.youtube.com/watch?v=siBtKaGj0uc)
 
 ## Background
 
