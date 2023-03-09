@@ -112,3 +112,8 @@ Blender plugin.
 </p>
 
 You're all set! Now you can import your `.bren` files output by the Tracky app.
+
+
+## Longer Tutorial
+
+[![Longer Tutorial Video](https://user-images.githubusercontent.com/1228/224113489-f11becd8-9a2b-4afd-bbd5-87810c8d5dc5.png)](https://www.youtube.com/watch?v=siBtKaGj0uc)
