@@ -113,6 +113,12 @@ Blender plugin.
 You're all set! Now you can import your `.bren` files output by the Tracky app.
 
 
-# Fun One-Minute Tutorial
+## Sample Tracky Output
+
+* [Sample Clip 1](https://cdn.shopify.com/s/files/1/0601/7060/0470/files/Tracky_SampleClip01.zip?v=1678393768)
+* [Sample Clip 2](https://cdn.shopify.com/s/files/1/0601/7060/0470/files/Tracky_SampleClip02.zip?v=1678393771)
+
+
+## Fun One-Minute Tutorial
 
 https://user-images.githubusercontent.com/1228/223236400-98469d59-504d-4276-8221-45e035c031fb.mp4
