@@ -16,7 +16,10 @@ import SceneKit.ModelIO
 let kAutofocusON = "AF ON"
 let kAutofocusOFF = "AF OFF"
 
-class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
+let kTrackedNodeBitmask: Int = 1 << 6
+let kModelNodeBitmask: Int = 1 << 7
+
+class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UIDocumentPickerDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
@@ -26,6 +29,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var clearAllButton: UIButton!
     @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
+    @IBOutlet var modelButton: UIButton!
+
+    var modelNode: SCNNode? = nil
+    var modelRotation: SCNVector3? = nil
 
     var emptyNode: SCNNode!
 
@@ -59,7 +66,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var projectionMatrix = matrix_identity_float4x4
     var horizontalPlaneNodes: [SCNNode] = []
     var verticalPlaneNodes: [SCNNode] = []
-    let trackedNodeBitmask: Int = 1 << 6
     var trackedNodes: [SCNNode] = []
 
     // The running time in seconds of a recording session (dispatches an update to the UI label)
@@ -95,7 +101,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // The tap target is bigger than the display, so we hide it but we assign it the appropriate
             // bitmask that we can hit test against it later
             if node.name == "TapTarget" {
-                node.categoryBitMask = trackedNodeBitmask
+                node.categoryBitMask = kTrackedNodeBitmask
                 node.isHidden = true
                 return
             }
@@ -116,6 +122,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         // Add a handler for non-UI taps (we'll raycast into the scene)
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+
+        view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(handleRotate)))
 
         // Set the default title on the auto-focus button
         afButton.setTitle(kAutofocusON, for: .normal)
@@ -230,6 +238,43 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBAction @objc func handleMicButtonTap() {
         micActive = !micActive
         micActiveButton.setImage(UIImage(systemName: micActive ? "mic.circle.fill" : "mic.slash.circle"), for: .normal)
+    }
+
+    // Chooses a model to place in the scene
+    @IBAction @objc func handleModelButtonTap() {
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.usdz])
+        documentPicker.delegate = self
+        documentPicker.modalPresentationStyle = .overFullScreen
+        documentPicker.allowsMultipleSelection = false
+        present(documentPicker, animated: true)
+    }
+
+    // MARK: - UIDocumentPickerDelegate Functions
+
+    @objc(documentPicker:didPickDocumentAtURL:) func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
+        dismiss(animated: true)
+
+        guard url.startAccessingSecurityScopedResource() else {
+            return
+        }
+
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+
+        let mdlAsset = MDLAsset(url: url)
+        let scene = SCNScene(mdlAsset: mdlAsset)
+
+        scene.rootNode.enumerateHierarchy { node, _rest in
+            node.categoryBitMask = kModelNodeBitmask
+        }
+
+        modelButton.isEnabled = false
+        modelNode = scene.rootNode
+    }
+
+    @objc func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        // Do we need to do anything here?
     }
 
     // MARK: - Recording Functions
@@ -411,8 +456,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         let loc = gesture.location(in: sceneView)
 
-        // First, see if it hits anything in the scene
-        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
+        // First, see if it hits any tracked empties
+        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: kTrackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
             var tmpNode = hitResult.node
             while let tmp = tmpNode.parent, tmp.parent != nil {
                 tmpNode = tmp
@@ -423,6 +468,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                 clearAllButton.isHidden = trackedNodes.count == 0
                 return
             }
+        }
+
+        // Next, see if it hits the model node
+        if let _ = sceneView.hitTest(loc, options: [.categoryBitMask: kModelNodeBitmask, .boundingBoxOnly: false, .ignoreHiddenNodes: true]).first {
+            modelNode?.removeFromParentNode()
+            modelNode = nil
+            return
         }
 
         // Otherwise, raycast out into the real world and place a new tracked node there
@@ -436,11 +488,38 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
 
+        // If we have a model node and the button is disabled, that's because we're ready
+        // to place the current model node
+        if let node = modelNode, !modelButton.isEnabled {
+            node.removeFromParentNode()
+            sceneView.scene.rootNode.addChildNode(node)
+            node.simdTransform = result.worldTransform
+            modelButton.isEnabled = true
+            clearAllButton.isHidden = false
+            return
+        }
+
         let node = emptyNode.clone()
         sceneView.scene.rootNode.addChildNode(node)
         node.simdTransform = result.worldTransform
         trackedNodes.append(node)
         clearAllButton.isHidden = false
+    }
+
+    // MARK: - UIRotationGestureRecognizer
+
+    @objc func handleRotate(_ gesture: UIRotationGestureRecognizer) {
+        guard let node = modelNode else { return }
+        switch gesture.state {
+        case .began:
+            modelRotation = node.eulerAngles
+        case .changed:
+            guard var modelRotationOrig = modelRotation else { return }
+            modelRotationOrig.y -= Float(gesture.rotation)
+            node.eulerAngles = modelRotationOrig
+        default:
+            modelRotation = nil
+        }
     }
 
     // MARK: - ARSessionDelegate
