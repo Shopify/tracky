@@ -231,6 +231,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     @IBAction @objc func handleClearAllTap() {
         trackedNodes.forEach { $0.removeFromParentNode() }
         trackedNodes.removeAll()
+        modelNode?.removeFromParentNode()
+        modelNode = nil
         clearAllButton.isHidden = true
     }
 
@@ -465,7 +467,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             if let idx = trackedNodes.firstIndex(of: tmpNode) {
                 trackedNodes.remove(at: idx)
                 tmpNode.removeFromParentNode()
-                clearAllButton.isHidden = trackedNodes.count == 0
+                clearAllButton.isHidden = trackedNodes.count == 0 && modelNode == nil
                 return
             }
         }
