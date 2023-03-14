@@ -181,6 +181,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         clearAllButton.isHidden = true
         micActiveButton.isHidden = true
         recordTimeLabel.isHidden = true
+        modelButton.isHidden = true
+        teardownModelPreviewNode()
     }
 
     // Shows all possible appropriate UI elements
@@ -192,7 +194,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         afButton.isHidden = false
         clearAllButton.isHidden = false
         micActiveButton.isHidden = false
-        recordTimeLabel.isHidden = false
+        //recordTimeLabel.isHidden = false
+        modelButton.isHidden = false
+        if modelNode != nil && !modelButton.isEnabled {
+            buildModelPreviewNode()
+        }
     }
 
     // MARK: - Button handlers
