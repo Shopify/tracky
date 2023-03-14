@@ -107,12 +107,26 @@
                                     <action selector="handleAFButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="gSC-OJ-4Ec"/>
                                 </connections>
                             </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="f5D-Tv-L2C">
+                                <rect key="frame" x="83" y="70" width="75" height="33"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="33" id="jnj-vs-229"/>
+                                    <constraint firstAttribute="width" constant="75" id="uZG-bi-U1h"/>
+                                </constraints>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="tinted" title="Model"/>
+                                <connections>
+                                    <action selector="handleModelButtonTap" destination="BV1-FR-VrT" eventType="touchUpInside" id="Hc3-0u-jzB"/>
+                                </connections>
+                            </button>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="fQZ-KI-GVf"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="Ed0-W8-BMc" firstAttribute="leading" relation="greaterThanOrEqual" secondItem="E3y-Jj-g43" secondAttribute="trailing" constant="8" symbolic="YES" id="0Dj-hs-gna"/>
                             <constraint firstItem="dUK-vX-tLS" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="0cV-r9-AKT"/>
+                            <constraint firstItem="fQZ-KI-GVf" firstAttribute="top" secondItem="f5D-Tv-L2C" secondAttribute="top" constant="-11" id="4ap-es-FKG"/>
+                            <constraint firstItem="f5D-Tv-L2C" firstAttribute="leading" secondItem="fQZ-KI-GVf" secondAttribute="leading" constant="83" id="88I-6V-RXc"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="trailing" secondItem="nCG-hC-lyh" secondAttribute="trailing" constant="19" id="8oy-7j-m63"/>
                             <constraint firstItem="Ed0-W8-BMc" firstAttribute="centerX" secondItem="fQZ-KI-GVf" secondAttribute="centerX" id="BHD-rJ-1ZD"/>
                             <constraint firstItem="fQZ-KI-GVf" firstAttribute="bottom" secondItem="RGa-ln-Ey1" secondAttribute="bottom" constant="45" id="G47-Nl-u7c"/>
@@ -143,6 +157,7 @@
                         <outlet property="fpsButton" destination="3bN-lF-9T5" id="z41-Ai-QAd"/>
                         <outlet property="hideButton" destination="Ed0-W8-BMc" id="zrF-yV-i4H"/>
                         <outlet property="micActiveButton" destination="E3y-Jj-g43" id="3wF-rW-3oS"/>
+                        <outlet property="modelButton" destination="f5D-Tv-L2C" id="FJj-Aw-FXd"/>
                         <outlet property="recordButton" destination="kQw-HA-47T" id="0Fb-PR-csr"/>
                         <outlet property="recordTimeLabel" destination="pca-4E-CP1" id="Q7D-eZ-qph"/>
                         <outlet property="recordingButton" destination="dUK-vX-tLS" id="3DN-Am-C2r"/>
