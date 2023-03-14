@@ -31,8 +31,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     @IBOutlet var recordTimeLabel: UILabel!
     @IBOutlet var modelButton: UIButton!
 
-    var modelNode: SCNNode? = nil
+    var modelNode: SCNNode? = nil {
+        didSet {
+            (modelNode == nil ? teardownModelPreviewNode : buildModelPreviewNode)()
+        }
+    }
     var modelRotation: SCNVector3? = nil
+    var modelPreviewNode: SCNNode? = nil
 
     var emptyNode: SCNNode!
 
@@ -244,6 +249,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
 
     // Chooses a model to place in the scene
     @IBAction @objc func handleModelButtonTap() {
+        modelNode?.removeFromParentNode()
+        modelNode = nil
         let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.usdz])
         documentPicker.delegate = self
         documentPicker.modalPresentationStyle = .overFullScreen
@@ -498,6 +505,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             node.simdTransform = result.worldTransform
             modelButton.isEnabled = true
             clearAllButton.isHidden = false
+            teardownModelPreviewNode()
             return
         }
 
@@ -522,6 +530,34 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         default:
             modelRotation = nil
         }
+    }
+
+    // MARK: - Preview Node Functions
+
+    func buildModelPreviewNode() {
+        guard modelPreviewNode == nil, let pov = sceneView.pointOfView, let node = modelNode?.clone() else { return }
+        guard let raycast = sceneView.raycastQuery(from: modelButton.frame.origin, allowing: .estimatedPlane, alignment: .any) else { return }
+
+        // Adjust scale to fit within a consistent box
+        let bounds = simd_float3(node.boundingBox.max) - simd_float3(node.boundingBox.min)
+        let boundsMax = simd_float3(0.75, 0.75, 0.75)
+        let adjust = SCNNode()
+        adjust.simdScale = boundsMax / bounds
+        pov.addChildNode(adjust)
+        adjust.simdWorldPosition = raycast.origin + (raycast.direction * 4.5) + simd_float3(0.125, -0.75, 0)
+
+        // Position on screen below model button
+        adjust.addChildNode(node)
+
+        // Spin
+        adjust.runAction(SCNAction.repeatForever(SCNAction.rotate(by: .pi, around: SCNVector3(0, 1, 0), duration: 5)))
+
+        modelPreviewNode = adjust
+    }
+
+    func teardownModelPreviewNode() {
+        modelPreviewNode?.removeFromParentNode()
+        modelPreviewNode = nil
     }
 
     // MARK: - ARSessionDelegate
