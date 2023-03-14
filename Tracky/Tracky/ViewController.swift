@@ -553,9 +553,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
 
         // Adjust scale to fit within a consistent box
         let bounds = simd_float3(node.boundingBox.max) - simd_float3(node.boundingBox.min)
+        let largest = max(bounds.x, bounds.y, bounds.z)
         let boundsMax = simd_float3(0.75, 0.75, 0.75)
         let adjust = SCNNode()
-        adjust.simdScale = boundsMax / bounds
+        adjust.simdScale = boundsMax / simd_float3(largest, largest, largest)
         pov.addChildNode(adjust)
         adjust.simdWorldPosition = raycast.origin + (raycast.direction * 4.5) + simd_float3(0.125, -0.75, 0)
 
