@@ -367,6 +367,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
                                                 recordMic: false,
                                                 outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
 
+        // Restart animations from frame 0
+        modelNode?.enumerateHierarchy { node, _rest in
+            for key in node.animationKeys {
+                node.animationPlayer(forKey: key)?.play()
+            }
+        }
+
         projectionMatrix = simd_float4x4(projectionTransform)
         isRecording = true
     }
