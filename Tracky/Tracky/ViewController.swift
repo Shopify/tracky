@@ -30,6 +30,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
     @IBOutlet var modelButton: UIButton!
+    @IBOutlet var audioButton: UIButton!
 
     var modelNode: SCNNode? = nil {
         didSet {
@@ -72,6 +73,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     var horizontalPlaneNodes: [SCNNode] = []
     var verticalPlaneNodes: [SCNNode] = []
     var trackedNodes: [SCNNode] = []
+
+    var picking: String? = nil
+    var audioData: Data? = nil
+    var audioPlayer: AVAudioPlayer? = nil
 
     // The running time in seconds of a recording session (dispatches an update to the UI label)
     var runTime: TimeInterval = 0 {
@@ -182,6 +187,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         micActiveButton.isHidden = true
         recordTimeLabel.isHidden = true
         modelButton.isHidden = true
+        audioButton.isHidden = true
         teardownModelPreviewNode()
     }
 
@@ -196,6 +202,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         micActiveButton.isHidden = false
         //recordTimeLabel.isHidden = false
         modelButton.isHidden = false
+        audioButton.isHidden = false
         if modelNode != nil && !modelButton.isEnabled {
             buildModelPreviewNode()
         }
@@ -244,6 +251,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         trackedNodes.removeAll()
         modelNode?.removeFromParentNode()
         modelNode = nil
+        modelButton.isHidden = false
+        audioData = nil
+        audioPlayer = nil
+        audioButton.setTitle("Audio", for: .normal)
+        audioPlayer = nil
         clearAllButton.isHidden = true
     }
 
@@ -261,6 +273,23 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         documentPicker.delegate = self
         documentPicker.modalPresentationStyle = .overFullScreen
         documentPicker.allowsMultipleSelection = false
+        picking = "model"
+        present(documentPicker, animated: true)
+    }
+
+    // Chooses an audio clip to play
+    @IBAction @objc func handleAudioButtonTap() {
+        if audioData != nil {
+            audioData = nil
+            audioPlayer = nil
+            audioButton.setTitle("Audio", for: .normal)
+            return
+        }
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .movie])
+        documentPicker.delegate = self
+        documentPicker.modalPresentationStyle = .overFullScreen
+        documentPicker.allowsMultipleSelection = false
+        picking = "audio"
         present(documentPicker, animated: true)
     }
 
@@ -268,6 +297,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
 
     @objc(documentPicker:didPickDocumentAtURL:) func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
         dismiss(animated: true)
+
+        let isModel = picking == "model"
+        let isAudio = picking == "audio"
+
+        picking = nil
 
         guard url.startAccessingSecurityScopedResource() else {
             return
@@ -277,15 +311,26 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             url.stopAccessingSecurityScopedResource()
         }
 
-        let mdlAsset = MDLAsset(url: url)
-        let scene = SCNScene(mdlAsset: mdlAsset)
+        if isModel {
+            let mdlAsset = MDLAsset(url: url)
+            let scene = SCNScene(mdlAsset: mdlAsset)
 
-        scene.rootNode.enumerateHierarchy { node, _rest in
-            node.categoryBitMask = kModelNodeBitmask
+            scene.rootNode.enumerateHierarchy { node, _rest in
+                node.categoryBitMask = kModelNodeBitmask
+            }
+
+            modelButton.isEnabled = false
+            modelNode = scene.rootNode
+        } else if isAudio {
+            do {
+                audioData = try Data(contentsOf: url)
+                audioButton.setTitle("No 🔊", for: .normal)
+            } catch {
+                print("Error loading audio data: \(error)")
+            }
+        } else {
+            print("Unknown file picker return")
         }
-
-        modelButton.isEnabled = false
-        modelNode = scene.rootNode
     }
 
     @objc func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
@@ -371,6 +416,16 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         modelNode?.enumerateHierarchy { node, _rest in
             for key in node.animationKeys {
                 node.animationPlayer(forKey: key)?.play()
+            }
+        }
+
+        if let data = audioData {
+            do {
+                audioPlayer = try AVAudioPlayer(data: data)
+                audioPlayer?.prepareToPlay()
+                audioPlayer?.play()
+            } catch {
+                print("Error creating audio player: \(error)")
             }
         }
 
