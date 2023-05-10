@@ -16,7 +16,10 @@ import SceneKit.ModelIO
 let kAutofocusON = "AF ON"
 let kAutofocusOFF = "AF OFF"
 
-class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
+let kTrackedNodeBitmask: Int = 1 << 6
+let kModelNodeBitmask: Int = 1 << 7
+
+class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UIDocumentPickerDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
@@ -26,6 +29,16 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var clearAllButton: UIButton!
     @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
+    @IBOutlet var modelButton: UIButton!
+    @IBOutlet var audioButton: UIButton!
+
+    var modelNode: SCNNode? = nil {
+        didSet {
+            (modelNode == nil ? teardownModelPreviewNode : buildModelPreviewNode)()
+        }
+    }
+    var modelRotation: SCNVector3? = nil
+    var modelPreviewNode: SCNNode? = nil
 
     var emptyNode: SCNNode!
 
@@ -59,8 +72,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     var projectionMatrix = matrix_identity_float4x4
     var horizontalPlaneNodes: [SCNNode] = []
     var verticalPlaneNodes: [SCNNode] = []
-    let trackedNodeBitmask: Int = 1 << 6
     var trackedNodes: [SCNNode] = []
+
+    var picking: String? = nil
+    var audioData: Data? = nil
+    var audioPlayer: AVAudioPlayer? = nil
 
     // The running time in seconds of a recording session (dispatches an update to the UI label)
     var runTime: TimeInterval = 0 {
@@ -95,7 +111,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             // The tap target is bigger than the display, so we hide it but we assign it the appropriate
             // bitmask that we can hit test against it later
             if node.name == "TapTarget" {
-                node.categoryBitMask = trackedNodeBitmask
+                node.categoryBitMask = kTrackedNodeBitmask
                 node.isHidden = true
                 return
             }
@@ -116,6 +132,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         // Add a handler for non-UI taps (we'll raycast into the scene)
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
+
+        view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(handleRotate)))
 
         // Set the default title on the auto-focus button
         afButton.setTitle(kAutofocusON, for: .normal)
@@ -168,6 +186,9 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         clearAllButton.isHidden = true
         micActiveButton.isHidden = true
         recordTimeLabel.isHidden = true
+        modelButton.isHidden = true
+        audioButton.isHidden = true
+        teardownModelPreviewNode()
     }
 
     // Shows all possible appropriate UI elements
@@ -179,7 +200,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         afButton.isHidden = false
         clearAllButton.isHidden = false
         micActiveButton.isHidden = false
-        recordTimeLabel.isHidden = false
+        //recordTimeLabel.isHidden = false
+        modelButton.isHidden = false
+        audioButton.isHidden = false
+        if modelNode != nil && !modelButton.isEnabled {
+            buildModelPreviewNode()
+        }
     }
 
     // MARK: - Button handlers
@@ -223,6 +249,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBAction @objc func handleClearAllTap() {
         trackedNodes.forEach { $0.removeFromParentNode() }
         trackedNodes.removeAll()
+        modelNode?.removeFromParentNode()
+        modelNode = nil
+        modelButton.isHidden = false
+        audioData = nil
+        audioPlayer = nil
+        audioButton.setTitle("Audio", for: .normal)
+        audioPlayer = nil
         clearAllButton.isHidden = true
     }
 
@@ -230,6 +263,78 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBAction @objc func handleMicButtonTap() {
         micActive = !micActive
         micActiveButton.setImage(UIImage(systemName: micActive ? "mic.circle.fill" : "mic.slash.circle"), for: .normal)
+    }
+
+    // Chooses a model to place in the scene
+    @IBAction @objc func handleModelButtonTap() {
+        modelNode?.removeFromParentNode()
+        modelNode = nil
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.usdz])
+        documentPicker.delegate = self
+        documentPicker.modalPresentationStyle = .overFullScreen
+        documentPicker.allowsMultipleSelection = false
+        picking = "model"
+        present(documentPicker, animated: true)
+    }
+
+    // Chooses an audio clip to play
+    @IBAction @objc func handleAudioButtonTap() {
+        if audioData != nil {
+            audioData = nil
+            audioPlayer = nil
+            audioButton.setTitle("Audio", for: .normal)
+            return
+        }
+        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .movie])
+        documentPicker.delegate = self
+        documentPicker.modalPresentationStyle = .overFullScreen
+        documentPicker.allowsMultipleSelection = false
+        picking = "audio"
+        present(documentPicker, animated: true)
+    }
+
+    // MARK: - UIDocumentPickerDelegate Functions
+
+    @objc(documentPicker:didPickDocumentAtURL:) func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
+        dismiss(animated: true)
+
+        let isModel = picking == "model"
+        let isAudio = picking == "audio"
+
+        picking = nil
+
+        guard url.startAccessingSecurityScopedResource() else {
+            return
+        }
+
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+
+        if isModel {
+            let mdlAsset = MDLAsset(url: url)
+            let scene = SCNScene(mdlAsset: mdlAsset)
+
+            scene.rootNode.enumerateHierarchy { node, _rest in
+                node.categoryBitMask = kModelNodeBitmask
+            }
+
+            modelButton.isEnabled = false
+            modelNode = scene.rootNode
+        } else if isAudio {
+            do {
+                audioData = try Data(contentsOf: url)
+                audioButton.setTitle("No 🔊", for: .normal)
+            } catch {
+                print("Error loading audio data: \(error)")
+            }
+        } else {
+            print("Unknown file picker return")
+        }
+    }
+
+    @objc func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        // Do we need to do anything here?
     }
 
     // MARK: - Recording Functions
@@ -306,6 +411,23 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
                                                 depth: true,
                                                 recordMic: false,
                                                 outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
+
+        // Restart animations from frame 0
+        modelNode?.enumerateHierarchy { node, _rest in
+            for key in node.animationKeys {
+                node.animationPlayer(forKey: key)?.play()
+            }
+        }
+
+        if let data = audioData {
+            do {
+                audioPlayer = try AVAudioPlayer(data: data)
+                audioPlayer?.prepareToPlay()
+                audioPlayer?.play()
+            } catch {
+                print("Error creating audio player: \(error)")
+            }
+        }
 
         projectionMatrix = simd_float4x4(projectionTransform)
         isRecording = true
@@ -411,8 +533,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         let loc = gesture.location(in: sceneView)
 
-        // First, see if it hits anything in the scene
-        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: trackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
+        // First, see if it hits any tracked empties
+        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: kTrackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
             var tmpNode = hitResult.node
             while let tmp = tmpNode.parent, tmp.parent != nil {
                 tmpNode = tmp
@@ -420,9 +542,16 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             if let idx = trackedNodes.firstIndex(of: tmpNode) {
                 trackedNodes.remove(at: idx)
                 tmpNode.removeFromParentNode()
-                clearAllButton.isHidden = trackedNodes.count == 0
+                clearAllButton.isHidden = trackedNodes.count == 0 && modelNode == nil
                 return
             }
+        }
+
+        // Next, see if it hits the model node
+        if let _ = sceneView.hitTest(loc, options: [.categoryBitMask: kModelNodeBitmask, .boundingBoxOnly: false, .ignoreHiddenNodes: true]).first {
+            modelNode?.removeFromParentNode()
+            modelNode = nil
+            return
         }
 
         // Otherwise, raycast out into the real world and place a new tracked node there
@@ -436,11 +565,68 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
 
+        // If we have a model node and the button is disabled, that's because we're ready
+        // to place the current model node
+        if let node = modelNode, !modelButton.isEnabled {
+            node.removeFromParentNode()
+            sceneView.scene.rootNode.addChildNode(node)
+            node.simdTransform = result.worldTransform
+            modelButton.isEnabled = true
+            clearAllButton.isHidden = false
+            teardownModelPreviewNode()
+            return
+        }
+
         let node = emptyNode.clone()
         sceneView.scene.rootNode.addChildNode(node)
         node.simdTransform = result.worldTransform
         trackedNodes.append(node)
         clearAllButton.isHidden = false
+    }
+
+    // MARK: - UIRotationGestureRecognizer
+
+    @objc func handleRotate(_ gesture: UIRotationGestureRecognizer) {
+        guard let node = modelNode else { return }
+        switch gesture.state {
+        case .began:
+            modelRotation = node.eulerAngles
+        case .changed:
+            guard var modelRotationOrig = modelRotation else { return }
+            modelRotationOrig.y -= Float(gesture.rotation)
+            node.eulerAngles = modelRotationOrig
+        default:
+            modelRotation = nil
+        }
+    }
+
+    // MARK: - Preview Node Functions
+
+    func buildModelPreviewNode() {
+        guard modelPreviewNode == nil, let pov = sceneView.pointOfView, let node = modelNode?.clone() else { return }
+        guard let raycast = sceneView.raycastQuery(from: modelButton.frame.origin, allowing: .estimatedPlane, alignment: .any) else { return }
+
+        // Adjust scale to fit within a consistent box
+        let bounds = simd_float3(node.boundingBox.max) - simd_float3(node.boundingBox.min)
+        let largest = max(bounds.x, bounds.y, bounds.z)
+        let boundsMax = simd_float3(0.75, 0.75, 0.75)
+        let adjust = SCNNode()
+        adjust.simdScale = boundsMax / simd_float3(largest, largest, largest)
+        pov.addChildNode(adjust)
+        adjust.simdWorldPosition = raycast.origin + (raycast.direction * 4.5) + simd_float3(0.125, -0.75, 0)
+
+        // Position on screen below model button
+        adjust.addChildNode(node)
+
+        // Spin
+        adjust.runAction(SCNAction.repeatForever(SCNAction.rotate(by: .pi, around: SCNVector3(0, 1, 0), duration: 5)))
+
+        modelPreviewNode = adjust
+    }
+
+    func teardownModelPreviewNode() {
+        modelPreviewNode?.removeFromParentNode()
+        modelPreviewNode = nil
     }
 
     // MARK: - ARSessionDelegate
