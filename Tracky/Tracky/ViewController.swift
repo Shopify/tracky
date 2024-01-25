@@ -27,10 +27,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     @IBOutlet var hideButton: UIButton!
     @IBOutlet var afButton: UIButton!
     @IBOutlet var clearAllButton: UIButton!
-    @IBOutlet var micActiveButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
     @IBOutlet var modelButton: UIButton!
-    @IBOutlet var audioButton: UIButton!
 
     var modelNode: SCNNode? = nil {
         didSet {
@@ -59,9 +57,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     // The directory where all the files will be saved
     var recordingDir: URL? = nil
 
-    // A boolean indicating whether or not to record microphone audio when recording an AR session
-    var micActive: Bool = true
-
     // Helpers to help encode the data from an ARKit frames into video and .bren files
     var videoSessionRGB: VideoSession? = nil
     var videoSessionDepth: VideoSession? = nil
@@ -75,8 +70,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     var trackedNodes: [SCNNode] = []
 
     var picking: String? = nil
-    var audioData: Data? = nil
-    var audioPlayer: AVAudioPlayer? = nil
 
     // The running time in seconds of a recording session (dispatches an update to the UI label)
     var runTime: TimeInterval = 0 {
@@ -184,10 +177,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         hideButton.isHidden = true
         afButton.isHidden = true
         clearAllButton.isHidden = true
-        micActiveButton.isHidden = true
         recordTimeLabel.isHidden = true
         modelButton.isHidden = true
-        audioButton.isHidden = true
         teardownModelPreviewNode()
     }
 
@@ -199,10 +190,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         hideButton.isHidden = false
         afButton.isHidden = false
         clearAllButton.isHidden = false
-        micActiveButton.isHidden = false
         //recordTimeLabel.isHidden = false
         modelButton.isHidden = false
-        audioButton.isHidden = false
         if modelNode != nil && !modelButton.isEnabled {
             buildModelPreviewNode()
         }
@@ -252,17 +241,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         modelNode?.removeFromParentNode()
         modelNode = nil
         modelButton.isHidden = false
-        audioData = nil
-        audioPlayer = nil
-        audioButton.setTitle("Audio", for: .normal)
-        audioPlayer = nil
         clearAllButton.isHidden = true
-    }
-
-    // Toggles between whether the microphone will be active or disabled during recording
-    @IBAction @objc func handleMicButtonTap() {
-        micActive = !micActive
-        micActiveButton.setImage(UIImage(systemName: micActive ? "mic.circle.fill" : "mic.slash.circle"), for: .normal)
     }
 
     // Chooses a model to place in the scene
@@ -277,29 +256,12 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         present(documentPicker, animated: true)
     }
 
-    // Chooses an audio clip to play
-    @IBAction @objc func handleAudioButtonTap() {
-        if audioData != nil {
-            audioData = nil
-            audioPlayer = nil
-            audioButton.setTitle("Audio", for: .normal)
-            return
-        }
-        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .movie])
-        documentPicker.delegate = self
-        documentPicker.modalPresentationStyle = .overFullScreen
-        documentPicker.allowsMultipleSelection = false
-        picking = "audio"
-        present(documentPicker, animated: true)
-    }
-
     // MARK: - UIDocumentPickerDelegate Functions
 
     @objc(documentPicker:didPickDocumentAtURL:) func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
         dismiss(animated: true)
 
         let isModel = picking == "model"
-        let isAudio = picking == "audio"
 
         picking = nil
 
@@ -321,13 +283,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
 
             modelButton.isEnabled = false
             modelNode = scene.rootNode
-        } else if isAudio {
-            do {
-                audioData = try Data(contentsOf: url)
-                audioButton.setTitle("No 🔊", for: .normal)
-            } catch {
-                print("Error loading audio data: \(error)")
-            }
         } else {
             print("Unknown file picker return")
         }
@@ -397,35 +352,22 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
                                        startTime: time,
                                        fps: dat.fps,
                                        depth: false,
-                                       recordMic: micActive,
                                        outputURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir))
         videoSessionDepth = VideoSession(pixelBuffer: sceneDepth,
                                          startTime: time,
                                          fps: dat.fps,
                                          depth: true,
-                                         recordMic: false,
                                          outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
         videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
                                                 startTime: time,
                                                 fps: dat.fps,
                                                 depth: true,
-                                                recordMic: false,
                                                 outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
 
         // Restart animations from frame 0
         modelNode?.enumerateHierarchy { node, _rest in
             for key in node.animationKeys {
                 node.animationPlayer(forKey: key)?.play()
-            }
-        }
-
-        if let data = audioData {
-            do {
-                audioPlayer = try AVAudioPlayer(data: data)
-                audioPlayer?.prepareToPlay()
-                audioPlayer?.play()
-            } catch {
-                print("Error creating audio player: \(error)")
             }
         }
 
