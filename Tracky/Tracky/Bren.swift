@@ -17,13 +17,11 @@ struct BrenWrapper: Codable {
     let render_data: BrenRenderData // Info about the rendering setup
     let camera_frames: BrenCameraFrames // Frame-by-frame camera animation
     let planes: [BrenPlane] // A list of discovered planes
-    let tracked_transforms: [[[Float]]] // A list of marked transform locations
 
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane], _ trackedTransforms: [simd_float4x4]) {
+    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane]) {
         render_data = renderData
         camera_frames = cameraFrames
         self.planes = planes
-        tracked_transforms = trackedTransforms.map(create_transform)
     }
 }
 

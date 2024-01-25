@@ -10,16 +10,11 @@ import SceneKit
 import ARKit
 import AVFoundation
 import ARKit
-import ModelIO
-import SceneKit.ModelIO
 
 let kAutofocusON = "AF ON"
 let kAutofocusOFF = "AF OFF"
 
-let kTrackedNodeBitmask: Int = 1 << 6
-let kModelNodeBitmask: Int = 1 << 7
-
-class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UIDocumentPickerDelegate {
+class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var sceneView: ARSCNView!
     @IBOutlet var recordButton: UIButton!
     @IBOutlet var recordingButton: UIButton!
@@ -28,17 +23,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     @IBOutlet var afButton: UIButton!
     @IBOutlet var clearAllButton: UIButton!
     @IBOutlet var recordTimeLabel: UILabel!
-    @IBOutlet var modelButton: UIButton!
-
-    var modelNode: SCNNode? = nil {
-        didSet {
-            (modelNode == nil ? teardownModelPreviewNode : buildModelPreviewNode)()
-        }
-    }
-    var modelRotation: SCNVector3? = nil
-    var modelPreviewNode: SCNNode? = nil
-
-    var emptyNode: SCNNode!
 
     var fps: UInt = 60
     var viewResolutionX: UInt = 0
@@ -66,7 +50,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     var projectionMatrix = matrix_identity_float4x4
     var horizontalPlaneNodes: [SCNNode] = []
     var verticalPlaneNodes: [SCNNode] = []
-    var trackedNodes: [SCNNode] = []
 
     var picking: String? = nil
 
@@ -96,25 +79,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Load the "empty" node
-        guard let emptyUrl = Bundle.main.url(forResource: "empty", withExtension: "usdz") else { fatalError() }
-        emptyNode = SCNNode(mdlObject: MDLAsset(url: emptyUrl).object(at: 0))
-        emptyNode.enumerateHierarchy { node, _rest in
-            // The tap target is bigger than the display, so we hide it but we assign it the appropriate
-            // bitmask that we can hit test against it later
-            if node.name == "TapTarget" {
-                node.categoryBitMask = kTrackedNodeBitmask
-                node.isHidden = true
-                return
-            }
-            // We don't want the "empty" model to have complex lighting, so we make sure all its materials
-            // have a lighting model of .constant
-            node.geometry?.materials = (node.geometry?.materials ?? []).map({ mat in
-                mat.lightingModel = .constant
-                return mat
-            })
-        }
-
         // Set the view's delegate
         sceneView.delegate = self
 
@@ -125,8 +89,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         // Add a handler for non-UI taps (we'll raycast into the scene)
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
 
-        view.addGestureRecognizer(UIRotationGestureRecognizer(target: self, action: #selector(handleRotate)))
-
         // Set the default title on the auto-focus button
         afButton.setTitle(kAutofocusON, for: .normal)
     }
@@ -135,8 +97,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         super.viewWillAppear(animated)
 
         // Remove any existing tracked AR stuff
-        trackedNodes.forEach { $0.removeFromParentNode() }
-        trackedNodes.removeAll()
         horizontalPlaneNodes.removeAll(keepingCapacity: true)
         verticalPlaneNodes.removeAll(keepingCapacity: true)
 
@@ -176,8 +136,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         afButton.isHidden = true
         clearAllButton.isHidden = true
         recordTimeLabel.isHidden = true
-        modelButton.isHidden = true
-        teardownModelPreviewNode()
     }
 
     // Shows all possible appropriate UI elements
@@ -189,10 +147,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         afButton.isHidden = false
         clearAllButton.isHidden = false
         //recordTimeLabel.isHidden = false
-        modelButton.isHidden = false
-        if modelNode != nil && !modelButton.isEnabled {
-            buildModelPreviewNode()
-        }
     }
 
     // MARK: - Button handlers
@@ -234,60 +188,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
 
     // Clears all tracked nodes
     @IBAction @objc func handleClearAllTap() {
-        trackedNodes.forEach { $0.removeFromParentNode() }
-        trackedNodes.removeAll()
-        modelNode?.removeFromParentNode()
-        modelNode = nil
-        modelButton.isHidden = false
         clearAllButton.isHidden = true
-    }
-
-    // Chooses a model to place in the scene
-    @IBAction @objc func handleModelButtonTap() {
-        modelNode?.removeFromParentNode()
-        modelNode = nil
-        let documentPicker = UIDocumentPickerViewController(forOpeningContentTypes: [.usdz])
-        documentPicker.delegate = self
-        documentPicker.modalPresentationStyle = .overFullScreen
-        documentPicker.allowsMultipleSelection = false
-        picking = "model"
-        present(documentPicker, animated: true)
-    }
-
-    // MARK: - UIDocumentPickerDelegate Functions
-
-    @objc(documentPicker:didPickDocumentAtURL:) func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentAt url: URL) {
-        dismiss(animated: true)
-
-        let isModel = picking == "model"
-
-        picking = nil
-
-        guard url.startAccessingSecurityScopedResource() else {
-            return
-        }
-
-        defer {
-            url.stopAccessingSecurityScopedResource()
-        }
-
-        if isModel {
-            let mdlAsset = MDLAsset(url: url)
-            let scene = SCNScene(mdlAsset: mdlAsset)
-
-            scene.rootNode.enumerateHierarchy { node, _rest in
-                node.categoryBitMask = kModelNodeBitmask
-            }
-
-            modelButton.isEnabled = false
-            modelNode = scene.rootNode
-        } else {
-            print("Unknown file picker return")
-        }
-    }
-
-    @objc func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-        // Do we need to do anything here?
     }
 
     // MARK: - Recording Functions
@@ -352,13 +253,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
                                          fps: dat.fps,
                                          depth: true,
                                          outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
-
-        // Restart animations from frame 0
-        modelNode?.enumerateHierarchy { node, _rest in
-            for key in node.animationKeys {
-                node.animationPlayer(forKey: key)?.play()
-            }
-        }
 
         projectionMatrix = simd_float4x4(projectionTransform)
         isRecording = true
@@ -426,9 +320,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         for extentNode in verticalPlaneNodes {
             planes.append(BrenPlane(transform: extentNode.simdWorldTransform, alignment: "vertical"))
         }
-        let trackedTransforms = trackedNodes.map { $0.simdTransform }
 
-        if !dataSession.write(videoSessionRGB: videoSessionRGB, planes: planes, trackedTransforms: trackedTransforms) {
+        if !dataSession.write(videoSessionRGB: videoSessionRGB, planes: planes) {
             print("Could not write .bren file")
         }
     }
@@ -456,103 +349,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             showUI()
             return
         }
-
-        let loc = gesture.location(in: sceneView)
-
-        // First, see if it hits any tracked empties
-        if let hitResult = sceneView.hitTest(loc, options: [.categoryBitMask: kTrackedNodeBitmask, .boundingBoxOnly: true, .ignoreHiddenNodes: false]).first {
-            var tmpNode = hitResult.node
-            while let tmp = tmpNode.parent, tmp.parent != nil {
-                tmpNode = tmp
-            }
-            if let idx = trackedNodes.firstIndex(of: tmpNode) {
-                trackedNodes.remove(at: idx)
-                tmpNode.removeFromParentNode()
-                clearAllButton.isHidden = trackedNodes.count == 0 && modelNode == nil
-                return
-            }
-        }
-
-        // Next, see if it hits the model node
-        if let _ = sceneView.hitTest(loc, options: [.categoryBitMask: kModelNodeBitmask, .boundingBoxOnly: false, .ignoreHiddenNodes: true]).first {
-            modelNode?.removeFromParentNode()
-            modelNode = nil
-            return
-        }
-
-        // Otherwise, raycast out into the real world and place a new tracked node there
-        guard let query = sceneView.raycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any) else {
-            // In a production app we should provide feedback to the user here
-            print("Couldn't create a query!")
-            return
-        }
-        guard let result = sceneView.session.raycast(query).first else {
-            print("Couldn't match the raycast with a plane.")
-            return
-        }
-
-        // If we have a model node and the button is disabled, that's because we're ready
-        // to place the current model node
-        if let node = modelNode, !modelButton.isEnabled {
-            node.removeFromParentNode()
-            sceneView.scene.rootNode.addChildNode(node)
-            node.simdTransform = result.worldTransform
-            modelButton.isEnabled = true
-            clearAllButton.isHidden = false
-            teardownModelPreviewNode()
-            return
-        }
-
-        let node = emptyNode.clone()
-        sceneView.scene.rootNode.addChildNode(node)
-        node.simdTransform = result.worldTransform
-        trackedNodes.append(node)
-        clearAllButton.isHidden = false
-    }
-
-    // MARK: - UIRotationGestureRecognizer
-
-    @objc func handleRotate(_ gesture: UIRotationGestureRecognizer) {
-        guard let node = modelNode else { return }
-        switch gesture.state {
-        case .began:
-            modelRotation = node.eulerAngles
-        case .changed:
-            guard var modelRotationOrig = modelRotation else { return }
-            modelRotationOrig.y -= Float(gesture.rotation)
-            node.eulerAngles = modelRotationOrig
-        default:
-            modelRotation = nil
-        }
-    }
-
-    // MARK: - Preview Node Functions
-
-    func buildModelPreviewNode() {
-        guard modelPreviewNode == nil, let pov = sceneView.pointOfView, let node = modelNode?.clone() else { return }
-        guard let raycast = sceneView.raycastQuery(from: modelButton.frame.origin, allowing: .estimatedPlane, alignment: .any) else { return }
-
-        // Adjust scale to fit within a consistent box
-        let bounds = simd_float3(node.boundingBox.max) - simd_float3(node.boundingBox.min)
-        let largest = max(bounds.x, bounds.y, bounds.z)
-        let boundsMax = simd_float3(0.75, 0.75, 0.75)
-        let adjust = SCNNode()
-        adjust.simdScale = boundsMax / simd_float3(largest, largest, largest)
-        pov.addChildNode(adjust)
-        adjust.simdWorldPosition = raycast.origin + (raycast.direction * 4.5) + simd_float3(0.125, -0.75, 0)
-
-        // Position on screen below model button
-        adjust.addChildNode(node)
-
-        // Spin
-        adjust.runAction(SCNAction.repeatForever(SCNAction.rotate(by: .pi, around: SCNVector3(0, 1, 0), duration: 5)))
-
-        modelPreviewNode = adjust
-    }
-
-    func teardownModelPreviewNode() {
-        modelPreviewNode?.removeFromParentNode()
-        modelPreviewNode = nil
     }
 
     // MARK: - ARSessionDelegate

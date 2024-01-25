@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		841C6C10299D7265005D3C1B /* empty.usdz in Resources */ = {isa = PBXBuildFile; fileRef = 841C6C0F299D7265005D3C1B /* empty.usdz */; };
 		84602361297F41C100806DDE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84602360297F41C100806DDE /* AppDelegate.swift */; };
 		84602365297F41C100806DDE /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84602364297F41C100806DDE /* ViewController.swift */; };
 		84602368297F41C100806DDE /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 84602366297F41C100806DDE /* Main.storyboard */; };
@@ -19,7 +18,6 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		841C6C0F299D7265005D3C1B /* empty.usdz */ = {isa = PBXFileReference; lastKnownFileType = file.usdz; path = empty.usdz; sourceTree = "<group>"; };
 		8460235D297F41C100806DDE /* Tracky.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tracky.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		84602360297F41C100806DDE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		84602364297F41C100806DDE /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
@@ -71,7 +69,6 @@
 				84602366297F41C100806DDE /* Main.storyboard */,
 				8460236B297F41C200806DDE /* LaunchScreen.storyboard */,
 				84602369297F41C200806DDE /* Assets.xcassets */,
-				841C6C0F299D7265005D3C1B /* empty.usdz */,
 			);
 			path = Tracky;
 			sourceTree = "<group>";
@@ -135,7 +132,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				8460236D297F41C200806DDE /* LaunchScreen.storyboard in Resources */,
-				841C6C10299D7265005D3C1B /* empty.usdz in Resources */,
 				8460236A297F41C200806DDE /* Assets.xcassets in Resources */,
 				84602368297F41C100806DDE /* Main.storyboard in Resources */,
 			);
@@ -299,11 +295,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6ZYNJZSY2C;
+				DEVELOPMENT_TEAM = FUGBT94W8X;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Tracky/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Uses the microphone to record audio when the user requests it.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -316,7 +313,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.Tracky;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.TrackyGaussianSplatting;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -331,11 +328,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 6ZYNJZSY2C;
+				DEVELOPMENT_TEAM = FUGBT94W8X;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Tracky/Info.plist;
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Uses the microphone to record audio when the user requests it.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -348,7 +346,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.Tracky;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.shopify.TrackyGaussianSplatting;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
