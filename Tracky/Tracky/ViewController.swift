@@ -60,7 +60,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
     // Helpers to help encode the data from an ARKit frames into video and .bren files
     var videoSessionRGB: VideoSession? = nil
     var videoSessionDepth: VideoSession? = nil
-    var videoSessionSegmentation: VideoSession? = nil
     var dataSession: DataSession? = nil
 
     // SceneKit variables that we're tracking, like horizontal planes, or tracked nodes
@@ -162,7 +161,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         configuration.isLightEstimationEnabled = true
         configuration.videoHDRAllowed = false
         configuration.frameSemantics.insert(.sceneDepth)
-        configuration.frameSemantics.insert(.personSegmentationWithDepth)
         
         // Run the view's session
         sceneView.session.run(configuration)
@@ -322,10 +320,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             print("ERROR: Could not start recording when ARFrame has no AR depth data")
             return
         }
-        guard let estimatedDepth = frame.estimatedDepthData else {
-            print("ERROR: Could not start recording when ARFrame has no estimated depth data")
-            return
-        }
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
@@ -358,11 +352,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
                                          fps: dat.fps,
                                          depth: true,
                                          outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
-        videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
-                                                startTime: time,
-                                                fps: dat.fps,
-                                                depth: true,
-                                                outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
 
         // Restart animations from frame 0
         modelNode?.enumerateHierarchy { node, _rest in
@@ -396,9 +385,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
         if let sceneDepth = frame.sceneDepth?.depthMap {
             videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
-        }
-        if let estimatedDepth = frame.estimatedDepthData {
-            videoSessionSegmentation?.addFrame(timestamp: time, image: estimatedDepth)
         }
 
         runTime = dataSession.runTime
@@ -453,12 +439,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         isRecording = false
         videoSessionRGB?.finish {
             self.videoSessionDepth?.finish {
-                self.videoSessionSegmentation?.finish {
-                    print("Finished writing .mp4s")
-                    self.writeARWorldMap()
-                    self.writeBrenfile()
-                    self.videoSessionRGB = nil
-                }
+                print("Finished writing .mp4s")
+                self.writeARWorldMap()
+                self.writeBrenfile()
+                self.videoSessionRGB = nil
             }
         }
     }
