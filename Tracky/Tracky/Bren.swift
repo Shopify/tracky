@@ -16,12 +16,10 @@ struct BrenWrapper: Codable {
     var version_minor: Int = 2
     let render_data: BrenRenderData // Info about the rendering setup
     let camera_frames: BrenCameraFrames // Frame-by-frame camera animation
-    let planes: [BrenPlane] // A list of discovered planes
 
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames, _ planes: [BrenPlane]) {
+    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames) {
         render_data = renderData
         camera_frames = cameraFrames
-        self.planes = planes
     }
 }
 
@@ -68,18 +66,6 @@ struct BrenLensData: Codable {
 
     init(focalLength: CGFloat, sensorHeight: CGFloat) {
         data = [Float(focalLength), Float(sensorHeight)]
-    }
-}
-
-// BrenPlane is a plane encoded into a flattened 4x4 float matrix and
-// an alignment string
-struct BrenPlane: Codable {
-    let transform: [[Float]] // The orientation of the plane as a 4x4 transform [[Float]]
-    let alignment: String // "horizontal" | "vertical"
-    
-    init(transform: simd_float4x4, alignment: String) {
-        self.transform = create_transform(transform: transform)
-        self.alignment = alignment
     }
 }
 

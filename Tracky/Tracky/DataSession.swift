@@ -47,7 +47,7 @@ class DataSession {
     }
 
     // Write all the recorded data as a .bren file at the configured output URL
-    func write(videoSessionRGB: VideoSession, planes: [BrenPlane]) -> Bool {
+    func write(videoSessionRGB: VideoSession) -> Bool {
         var videoX = videoSessionRGB.videoResolutionX
         var videoY = videoSessionRGB.videoResolutionY
         if orientation == .portrait {
@@ -68,7 +68,7 @@ class DataSession {
             transforms: cameraTransforms,
             datas: lensDatas
         )
-        let data = BrenWrapper(renderData, cameraFrames, planes)
+        let data = BrenWrapper(renderData, cameraFrames)
 
         // Turns out .bren is just JSON :D
         let jsonEncoder = JSONEncoder()

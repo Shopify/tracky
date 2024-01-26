@@ -313,15 +313,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
-        var planes: [BrenPlane] = []
-        for extentNode in horizontalPlaneNodes {
-            planes.append(BrenPlane(transform: extentNode.simdWorldTransform, alignment: "horizontal"))
-        }
-        for extentNode in verticalPlaneNodes {
-            planes.append(BrenPlane(transform: extentNode.simdWorldTransform, alignment: "vertical"))
-        }
-
-        if !dataSession.write(videoSessionRGB: videoSessionRGB, planes: planes) {
+        if !dataSession.write(videoSessionRGB: videoSessionRGB) {
             print("Could not write .bren file")
         }
     }
