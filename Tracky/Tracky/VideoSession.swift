@@ -72,13 +72,8 @@ class VideoSession: NSObject {
             return
         }
 
-        // This will store the final image after any conversion is done
-        var finalImage: CVPixelBuffer!
-
-        finalImage = image
-
         // Add the final image at the calculated timestamp to the asset writer
-        if !assetWriterPixelBufferInput.append(finalImage, withPresentationTime: ts) {
+        if !assetWriterPixelBufferInput.append(image, withPresentationTime: ts) {
             print("Could not append rgb frame \(ts)")
         }
     }
