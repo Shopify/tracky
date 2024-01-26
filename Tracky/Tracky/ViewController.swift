@@ -43,7 +43,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
     // Helpers to help encode the data from an ARKit frames into video and .bren files
     var videoSessionRGB: VideoSession? = nil
-    var videoSessionDepth: VideoSession? = nil
     var dataSession: DataSession? = nil
 
     // SceneKit variables that we're tracking, like horizontal planes, or tracked nodes
@@ -120,7 +119,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         configuration.environmentTexturing = .automatic
         configuration.isLightEstimationEnabled = true
         configuration.videoHDRAllowed = false
-        configuration.frameSemantics.insert(.sceneDepth)
         
         // Run the view's session
         sceneView.session.run(configuration)
@@ -217,10 +215,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             print("ERROR: Could not get renderer pov camera")
             return
         }
-        guard let sceneDepth = frame.sceneDepth?.depthMap else {
-            print("ERROR: Could not start recording when ARFrame has no AR depth data")
-            return
-        }
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
@@ -246,13 +240,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage,
                                        startTime: time,
                                        fps: dat.fps,
-                                       depth: false,
                                        outputURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir))
-        videoSessionDepth = VideoSession(pixelBuffer: sceneDepth,
-                                         startTime: time,
-                                         fps: dat.fps,
-                                         depth: true,
-                                         outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
 
         projectionMatrix = simd_float4x4(projectionTransform)
         isRecording = true
@@ -277,9 +265,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         // Capture video frames
         videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
-        if let sceneDepth = frame.sceneDepth?.depthMap {
-            videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
-        }
 
         runTime = dataSession.runTime
     }
@@ -323,12 +308,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordTimeLabel.isHidden = true
         isRecording = false
         videoSessionRGB?.finish {
-            self.videoSessionDepth?.finish {
-                print("Finished writing .mp4s")
-                self.writeARWorldMap()
-                self.writeBrenfile()
-                self.videoSessionRGB = nil
-            }
+            print("Finished writing .mp4s")
+            self.writeARWorldMap()
+            self.writeBrenfile()
+            self.videoSessionRGB = nil
         }
     }
 

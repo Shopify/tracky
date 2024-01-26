@@ -17,29 +17,20 @@ class VideoSession: NSObject {
     var fps: UInt
     var outputURL: URL
     var startTime: TimeInterval
-    var depth: Bool
     var videoResolutionX: UInt
     var videoResolutionY: UInt
     var assetWriter: AVAssetWriter
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor
-    var ciContext: CIContext? = nil
 
-    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, depth: Bool, outputURL: URL) {
+    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, outputURL: URL) {
         // Assign all of the properties that were passed in to the initializer
         self.fps = fps
         self.outputURL = outputURL
         self.startTime = startTime
-        self.depth = depth
 
         // Get the width and height of the video by analyzing the pixel buffer
         videoResolutionX = UInt(CVPixelBufferGetWidthOfPlane(pixelBuffer, 0))
         videoResolutionY = UInt(CVPixelBufferGetHeightOfPlane(pixelBuffer, 0))
-
-        // If we're writing depth, we need CoreImage to convert to a depth format that
-        // the asset writer can handle, so initialize it upfront
-        if (depth) {
-            ciContext = CIContext()
-        }
 
         // Create an asset writer to write out an mp4 video file
         assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: AVFileType.mp4)
@@ -84,24 +75,11 @@ class VideoSession: NSObject {
         // This will store the final image after any conversion is done
         var finalImage: CVPixelBuffer!
 
-        // If it's a depth image, we need to use CoreImage to convert it to a compatible format
-        if depth {
-            let ciImage = CIImage(cvPixelBuffer: image)
-            let result = CVPixelBufferCreate(nil, Int(videoResolutionX), Int(videoResolutionY), kCVPixelFormatType_32ARGB, kDepthBufferCompat, &finalImage)
-            if result != 0 {
-                print("Error creating depth CVPixelBuffer, code: \(result)")
-                return
-            }
-            ciContext?.render(ciImage, to: finalImage)
-        } else {
-            // Otherwise it's not depth, no conversion needed, so our final image is
-            // just our input image
-            finalImage = image
-        }
+        finalImage = image
 
         // Add the final image at the calculated timestamp to the asset writer
         if !assetWriterPixelBufferInput.append(finalImage, withPresentationTime: ts) {
-            print("Could not append \(depth ? "depth" : "rgb") frame \(ts)")
+            print("Could not append rgb frame \(ts)")
         }
     }
 
@@ -112,8 +90,3 @@ class VideoSession: NSObject {
         }
     }
 }
-
-let kDepthBufferCompat = [
-    kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
-    kCVPixelBufferCGImageCompatibilityKey as String: true
-] as CFDictionary
