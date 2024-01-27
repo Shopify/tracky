@@ -12,8 +12,6 @@ import simd
 // Helper class for writing an ARKit frame stream into a .bren file with tracked transforms
 class DataSession {
     let fps: UInt
-    let viewResolutionX: UInt
-    let viewResolutionY: UInt
     let startTime: TimeInterval
     let outputURL: URL
     let orientation = UIDevice.current.orientation
@@ -24,10 +22,8 @@ class DataSession {
     var lensDatas: [BrenLensData] = []
 
     // Capture the start time and view resolution, as well as the eventual output url
-    init(startTime: TimeInterval, fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, outputURL: URL) {
+    init(startTime: TimeInterval, fps: UInt, outputURL: URL) {
         self.fps = fps
-        self.viewResolutionX = viewResolutionX
-        self.viewResolutionY = viewResolutionY
         self.startTime = startTime
         self.outputURL = outputURL
     }
@@ -55,20 +51,12 @@ class DataSession {
             videoX = videoY
             videoY = tmp
         }
-        let renderData = BrenRenderData(
-            orientation: UInt(orientation.rawValue),
-            fps: fps,
-            viewResolutionX: viewResolutionX,
-            viewResolutionY: viewResolutionY,
-            videoResolutionX: videoX,
-            videoResolutionY: videoY
-        )
         let cameraFrames = BrenCameraFrames(
             timestamps: timestamps,
             transforms: cameraTransforms,
             datas: lensDatas
         )
-        let data = BrenWrapper(renderData, cameraFrames)
+        let data = BrenWrapper(cameraFrames)
 
         // Turns out .bren is just JSON :D
         let jsonEncoder = JSONEncoder()

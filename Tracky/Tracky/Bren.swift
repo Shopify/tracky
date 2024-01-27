@@ -11,36 +11,10 @@ import simd
 // BrenWrapper represents one Brenfile, which is a JSON file with one object
 // whose keys map to the fields on this struct
 struct BrenWrapper: Codable {
-    // These are only marked as mutable so that Swift serializes them
-    var version_major: Int = 1
-    var version_minor: Int = 2
-    let render_data: BrenRenderData // Info about the rendering setup
     let camera_frames: BrenCameraFrames // Frame-by-frame camera animation
 
-    init(_ renderData: BrenRenderData, _ cameraFrames: BrenCameraFrames) {
-        render_data = renderData
+    init(_ cameraFrames: BrenCameraFrames) {
         camera_frames = cameraFrames
-    }
-}
-
-// BrenRenderData contains systemic information about rendering,
-// such as resolutions and frames per second, captured at the start
-// of the recording session
-struct BrenRenderData: Codable {
-    let orientation: UInt // The orientation of the phone
-    let fps: UInt // The desired rendering cadence
-    let view_resolution_x: UInt // The X resolution of the AR view on iOS
-    let view_resolution_y: UInt // The Y resolution of the AR view on iOS
-    let video_resolution_x: UInt // The X resolution of the background AR video asset
-    let video_resolution_y: UInt // The Y resolution of the background AR video asset
-    
-    init(orientation: UInt, fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, videoResolutionX: UInt, videoResolutionY: UInt) {
-        self.orientation = orientation
-        self.fps = fps
-        self.view_resolution_x = viewResolutionX
-        self.view_resolution_y = viewResolutionY
-        self.video_resolution_x = videoResolutionX
-        self.video_resolution_y = videoResolutionY
     }
 }
 

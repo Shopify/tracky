@@ -25,8 +25,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     @IBOutlet var recordTimeLabel: UILabel!
 
     var fps: UInt = 60
-    var viewResolutionX: UInt = 0
-    var viewResolutionY: UInt = 0
     var wantsRecording = false
     var isRecording = false {
         didSet {
@@ -199,9 +197,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         if fps == 0 {
             fps = 60 // idk
         }
-        let scl = UIScreen.main.scale
-        viewResolutionX = UInt(view.frame.size.width * scl)
-        viewResolutionY = UInt(view.frame.size.height * scl)
 
         recordTimeLabel.isHidden = false
         runTime = 0
@@ -232,8 +227,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         let dat = DataSession(startTime: time,
                               fps: fps,
-                              viewResolutionX: viewResolutionX,
-                              viewResolutionY: viewResolutionY,
                               outputURL: URL(fileURLWithPath: "\(ourEpoch)-camera.bren", relativeTo: recDir))
         dataSession = dat
 
