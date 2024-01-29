@@ -17,9 +17,7 @@ class DataSession {
     let orientation = UIDevice.current.orientation
 
     var runTime: TimeInterval = 0
-    var timestamps: [Float] = []
-    var cameraTransforms: [simd_float4x4] = []
-    var lensDatas: [BrenLensData] = []
+    var cameraFrames: [CameraFrame] = []
 
     // Capture the start time and view resolution, as well as the eventual output url
     init(startTime: TimeInterval, fps: UInt, outputURL: URL) {
@@ -29,17 +27,29 @@ class DataSession {
     }
 
     // Add a new ARKit data frame
-    func addFrame(time: TimeInterval, cameraTransform: simd_float4x4, resolution: CGSize, intrinsics: simd_float3x3) {
+    func addFrame(time: TimeInterval, cameraTransform: simd_float4x4, intrinsics: simd_float3x3, videoResolutionX: UInt, videoResolutionY: UInt) {
         runTime = time - startTime
-
-        // Saved data for .bren file
-        timestamps.append(Float(runTime))
-        cameraTransforms.append(cameraTransform)
-
-        let filmHeight: CGFloat = orientation == .portrait ? 36.0 : 24.0
-        let sensorHeight: CGFloat = orientation == .portrait ? resolution.width : resolution.height
-        let focalLength = CGFloat(intrinsics[1, 1]) * (filmHeight / sensorHeight)
-        lensDatas.append(BrenLensData(focalLength: focalLength, sensorHeight: filmHeight))
+        
+        let fx: Float = intrinsics[0, 0];
+        let fy: Float = intrinsics[1, 1];
+        let cx: Float = intrinsics[2, 0];
+        let cy: Float = intrinsics[2, 1];
+        
+        let t_00: Float = cameraTransform[0, 0]
+        let t_01: Float = cameraTransform[1, 0]
+        let t_02: Float = cameraTransform[2, 0]
+        let t_03: Float = cameraTransform[3, 0]
+        let t_10: Float = cameraTransform[0, 1]
+        let t_11: Float = cameraTransform[1, 1]
+        let t_12: Float = cameraTransform[2, 1]
+        let t_13: Float = cameraTransform[3, 1]
+        let t_20: Float = cameraTransform[0, 2]
+        let t_21: Float = cameraTransform[1, 2]
+        let t_22: Float = cameraTransform[2, 2]
+        let t_23: Float = cameraTransform[3, 2]
+        
+        // TODO: Figure out appropriate blur_score
+        cameraFrames.append(CameraFrame(blur_score: 0.0, timestamp: Float(runTime), fx: fx, fy: fy, cx: cx, cy: cy, width: videoResolutionX, height: videoResolutionY, t_00: t_00, t_01: t_01, t_02: t_02, t_03: t_03, t_10: t_10, t_11: t_11, t_12: t_12, t_13: t_13, t_20: t_20, t_21: t_21, t_22: t_22, t_23: t_23));
     }
 
     // Write all the recorded data as a .bren file at the configured output URL
@@ -52,9 +62,7 @@ class DataSession {
             videoY = tmp
         }
         let cameraFrames = BrenCameraFrames(
-            timestamps: timestamps,
-            transforms: cameraTransforms,
-            datas: lensDatas
+            cameraFrames: cameraFrames
         )
         let data = BrenWrapper(cameraFrames)
 
@@ -62,13 +70,13 @@ class DataSession {
         let jsonEncoder = JSONEncoder()
         guard let jsonData = try? jsonEncoder.encode(data),
               let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
-            print("ERROR: Could not encode .bren json data")
+            print("*** ERROR: Could not encode .bren json data")
             return false
         }
 
         do {
             try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
-            print("Finished writing .bren")
+            print("*** Finished writing .bren")
             return true
         } catch {
             return false

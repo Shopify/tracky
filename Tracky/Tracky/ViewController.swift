@@ -207,11 +207,11 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // Starts the actual recording processes (not on UI thread)
     func startRecording(_ renderer: SCNSceneRenderer, _ frame: ARFrame, _ time: TimeInterval) {
         guard let projectionTransform = renderer.pointOfView?.camera?.projectionTransform else {
-            print("ERROR: Could not get renderer pov camera")
+            print("*** ERROR: Could not get renderer pov camera")
             return
         }
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
-            print("ERROR: Could not get documents path")
+            print("*** ERROR: Could not get documents path")
             return
         }
         let dirname = dateFormatter.string(from: Date.now)
@@ -220,7 +220,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         do {
             try FileManager.default.createDirectory(at: recDir, withIntermediateDirectories: true)
         } catch {
-            print("Could not create directory \(recDir)")
+            print("*** Could not create directory \(recDir)")
             return
         }
         recordingDir = recDir
@@ -254,7 +254,13 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         guard let dataSession = dataSession,
               let pov = renderer.pointOfView else { return }
 
-        dataSession.addFrame(time: time, cameraTransform: pov.simdTransform, resolution: frame.camera.imageResolution, intrinsics: frame.camera.intrinsics)
+        dataSession.addFrame(
+            time: time,
+            cameraTransform: pov.simdTransform,
+            intrinsics: frame.camera.intrinsics,
+            videoResolutionX: videoSessionRGB?.videoResolutionX ?? 0,
+            videoResolutionY: videoSessionRGB?.videoResolutionY ?? 0
+        )
 
         // Capture video frames
         videoSessionRGB?.addFrame(timestamp: time, image: frame.capturedImage)
@@ -265,22 +271,22 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // Grabs the ARWorldMap from the ARKit session and writes it to the recording directory
     func writeARWorldMap() {
         guard let recordDir = recordingDir else {
-            print("ERROR: Cannot save brenfile with nil recordingDir")
+            print("*** ERROR: Cannot save brenfile with nil recordingDir")
             return
         }
         let outputURL = URL(fileURLWithPath: "\(ourEpoch)-environment.arworldmap", relativeTo: recordDir)
 
         sceneView.session.getCurrentWorldMap { (worldMap, error) in
             guard let worldMap = worldMap else {
-                print("Could not get ARWorldMap to save: \(String(describing: error?.localizedDescription))")
+                print("*** Could not get ARWorldMap to save: \(String(describing: error?.localizedDescription))")
                 return
             }
             guard let data = try? NSKeyedArchiver.archivedData(withRootObject: worldMap, requiringSecureCoding: true) else {
-                print("Could not encode ARWorldMap using NSKeyedArchiver")
+                print("*** Could not encode ARWorldMap using NSKeyedArchiver")
                 return
             }
             try? data.write(to: outputURL)
-            print("Finished writing .arworldmap")
+            print("*** Finished writing .arworldmap")
         }
     }
 
@@ -292,7 +298,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         if !dataSession.write(videoSessionRGB: videoSessionRGB) {
-            print("Could not write .bren file")
+            print("*** Could not write .bren file")
         }
     }
 
@@ -301,7 +307,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordTimeLabel.isHidden = true
         isRecording = false
         videoSessionRGB?.finish {
-            print("Finished writing .mp4s")
+            print("*** Finished writing .mp4s")
             self.writeARWorldMap()
             self.writeBrenfile()
             self.videoSessionRGB = nil

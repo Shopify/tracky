@@ -68,13 +68,13 @@ class VideoSession: NSObject {
         // Make sure the system isn't pushing back and telling us to wait for more data.
         // If it is, we drop this frame to give the system a chance to recover
         if !assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
-            print("Not ready for more media data: \(ts)")
+            print("*** Not ready for more media data: \(ts)")
             return
         }
 
         // Add the final image at the calculated timestamp to the asset writer
         if !assetWriterPixelBufferInput.append(image, withPresentationTime: ts) {
-            print("Could not append rgb frame \(ts)")
+            print("*** Could not append rgb frame \(ts)")
         }
     }
 
