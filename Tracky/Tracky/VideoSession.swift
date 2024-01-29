@@ -15,18 +15,22 @@ import CoreImage
 // Helper class for capturing an ARKit video stream to disk
 class VideoSession: NSObject {
     var fps: UInt
+    var recDir: URL
     var outputURL: URL
     var startTime: TimeInterval
     var videoResolutionX: UInt
     var videoResolutionY: UInt
     var assetWriter: AVAssetWriter
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor
+    var numFrames: UInt
 
-    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, outputURL: URL) {
+    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, recDir: URL, outputURL: URL) {
         // Assign all of the properties that were passed in to the initializer
         self.fps = fps
+        self.recDir = recDir
         self.outputURL = outputURL
         self.startTime = startTime
+        self.numFrames = 0
 
         // Get the width and height of the video by analyzing the pixel buffer
         videoResolutionX = UInt(CVPixelBufferGetWidthOfPlane(pixelBuffer, 0))
@@ -75,13 +79,60 @@ class VideoSession: NSObject {
         // Add the final image at the calculated timestamp to the asset writer
         if !assetWriterPixelBufferInput.append(image, withPresentationTime: ts) {
             print("*** Could not append rgb frame \(ts)")
+            return
         }
+        
+        numFrames += 1;
     }
 
     // Finish writing the video and then call the compltion handler
     func finish(completionHandler handler: (() -> Void)?) {
         assetWriter.finishWriting() {
+            print("*** numFrames processed: \(self.numFrames)")
+            
+            self.convertVideoToFrames(videoURL: self.outputURL);
+            
             handler?()
         }
+    }
+
+    func convertVideoToFrames(videoURL: URL) {
+        let asset = AVAsset(url: videoURL)
+        guard let assetReader = try? AVAssetReader(asset: asset) else {
+            print("*** Could not initialize asset reader")
+            return
+        }
+
+        guard let track = asset.tracks(withMediaType: .video).first else { return }
+        let outputSettings: [String: Any] = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB]
+        let readerOutput = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
+
+        assetReader.add(readerOutput)
+        assetReader.startReading()
+
+        var frameCount = 0
+        while let sampleBuffer = readerOutput.copyNextSampleBuffer() {
+            if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                // Here you can create a UIImage or an SKTexture from the CIImage
+                let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+                let image = UIImage(ciImage: ciImage)
+
+                // Save image to disk
+                if let data = image.pngData() {
+                    let filename = URL(fileURLWithPath: "frame_\(frameCount).png", relativeTo: recDir)
+                    try? data.write(to: filename)
+                }
+
+                frameCount += 1
+            }
+            CMSampleBufferInvalidate(sampleBuffer)
+        }
+        
+        print("*** numFrames saved to disk: \(frameCount)")
+    }
+
+    func getDocumentsDirectory() -> URL {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        return paths[0]
     }
 }

@@ -233,6 +233,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage,
                                        startTime: time,
                                        fps: dat.fps,
+                                       recDir: recDir,
                                        outputURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir))
 
         projectionMatrix = simd_float4x4(projectionTransform)
@@ -307,7 +308,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         recordTimeLabel.isHidden = true
         isRecording = false
         videoSessionRGB?.finish {
-            print("*** Finished writing .mp4s")
+            print("*** Finished writing .mp4")
             self.writeARWorldMap()
             self.writeBrenfile()
             self.videoSessionRGB = nil
