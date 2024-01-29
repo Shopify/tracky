@@ -15,8 +15,8 @@ import CoreImage
 // Helper class for capturing an ARKit video stream to disk
 class VideoSession: NSObject {
     var fps: UInt
-    var recDir: URL
-    var outputURL: URL
+    var videoURL: URL
+    var imagesURL: URL
     var startTime: TimeInterval
     var videoResolutionX: UInt
     var videoResolutionY: UInt
@@ -24,11 +24,11 @@ class VideoSession: NSObject {
     var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor
     var numFrames: UInt
 
-    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, recDir: URL, outputURL: URL) {
+    init(pixelBuffer: CVPixelBuffer, startTime: TimeInterval, fps: UInt = 60, videoURL: URL, imagesURL: URL) {
         // Assign all of the properties that were passed in to the initializer
         self.fps = fps
-        self.recDir = recDir
-        self.outputURL = outputURL
+        self.videoURL = videoURL
+        self.imagesURL = imagesURL
         self.startTime = startTime
         self.numFrames = 0
 
@@ -37,7 +37,7 @@ class VideoSession: NSObject {
         videoResolutionY = UInt(CVPixelBufferGetHeightOfPlane(pixelBuffer, 0))
 
         // Create an asset writer to write out an mp4 video file
-        assetWriter = try! AVAssetWriter(outputURL: outputURL, fileType: AVFileType.mp4)
+        assetWriter = try! AVAssetWriter(outputURL: videoURL, fileType: AVFileType.mp4)
 
         // Set the resolution and codec configuration of the mp4 file writer
         let assetWriterVideoInput = AVAssetWriterInput(mediaType: AVMediaType.video, outputSettings: [
@@ -90,24 +90,13 @@ class VideoSession: NSObject {
         assetWriter.finishWriting() {
             print("*** numFrames processed: \(self.numFrames)")
             
-            self.convertVideoToFrames(videoURL: self.outputURL);
+            self.convertVideoToFrames();
             
             handler?()
         }
     }
 
-    func convertVideoToFrames(videoURL: URL) {
-        // Create a URL for the frames directory
-        let framesDir = recDir.appendingPathComponent("frames", isDirectory: true)
-
-        // Create the frames directory
-        do {
-            try FileManager.default.createDirectory(at: framesDir, withIntermediateDirectories: true, attributes: nil)
-        } catch {
-            print("*** Error creating frames directory: \(error)")
-            return
-        }
-        
+    func convertVideoToFrames() {
         let asset = AVAsset(url: videoURL)
         guard let assetReader = try? AVAssetReader(asset: asset) else {
             print("*** Could not initialize asset reader")
@@ -131,7 +120,7 @@ class VideoSession: NSObject {
 
                     // Save image to disk
                     if let data = image!.pngData() {
-                        let filename = framesDir.appendingPathComponent("frame_\(frameCount).png")
+                        let filename = imagesURL.appendingPathComponent("frame_\(frameCount).png")
                         try? data.write(to: filename)
                     }
 

@@ -225,6 +225,24 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         recordingDir = recDir
 
+        // Create the keyframes directory
+        let keyframesDir = recDir.appendingPathComponent("keyframes", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: keyframesDir, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("*** Could not create directory \(keyframesDir)")
+            return
+        }
+
+        // Create the images directory
+        let imagesDir = keyframesDir.appendingPathComponent("images", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("*** Could not create directory \(imagesDir)")
+            return
+        }
+        
         let dat = DataSession(startTime: time,
                               fps: fps,
                               outputURL: URL(fileURLWithPath: "\(ourEpoch)-camera.json", relativeTo: recDir))
@@ -233,8 +251,8 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage,
                                        startTime: time,
                                        fps: dat.fps,
-                                       recDir: recDir,
-                                       outputURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir))
+                                       videoURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir),
+                                       imagesURL: imagesDir)
 
         projectionMatrix = simd_float4x4(projectionTransform)
         isRecording = true
