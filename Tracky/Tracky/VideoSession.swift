@@ -120,7 +120,7 @@ class VideoSession: NSObject {
 
                     // Save image to disk
                     if let data = image!.pngData() {
-                        let filename = imagesURL.appendingPathComponent("frame_\(frameCount).png")
+                        let filename = imagesURL.appendingPathComponent("\(frameCount).png")
                         try? data.write(to: filename)
                     }
 

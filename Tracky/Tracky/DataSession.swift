@@ -48,8 +48,7 @@ class DataSession {
         let t_22: Float = cameraTransform[2, 2]
         let t_23: Float = cameraTransform[3, 2]
         
-        // TODO: Figure out appropriate blur_score
-        cameraFrames.append(CameraFrame(blur_score: 0.0, timestamp: Float(runTime), fx: fx, fy: fy, cx: cx, cy: cy, width: videoResolutionX, height: videoResolutionY, t_00: t_00, t_01: t_01, t_02: t_02, t_03: t_03, t_10: t_10, t_11: t_11, t_12: t_12, t_13: t_13, t_20: t_20, t_21: t_21, t_22: t_22, t_23: t_23));
+        cameraFrames.append(CameraFrame(blur_score: 100.0, timestamp: Float(runTime), fx: fx, fy: fy, cx: cx, cy: cy, width: videoResolutionX, height: videoResolutionY, t_00: t_00, t_01: t_01, t_02: t_02, t_03: t_03, t_10: t_10, t_11: t_11, t_12: t_12, t_13: t_13, t_20: t_20, t_21: t_21, t_22: t_22, t_23: t_23));
     }
 
     // Write all the recorded data as a .json file at the configured output URL
