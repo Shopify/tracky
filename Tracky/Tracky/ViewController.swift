@@ -243,9 +243,18 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
             return
         }
         
+        // Create the cameras directory
+        let camerasDir = keyframesDir.appendingPathComponent("cameras", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: camerasDir, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("*** Could not create directory \(camerasDir)")
+            return
+        }
+        
         let dat = DataSession(startTime: time,
                               fps: fps,
-                              outputURL: URL(fileURLWithPath: "\(ourEpoch)-camera.json", relativeTo: recDir))
+                              camerasURL: camerasDir)
         dataSession = dat
 
         videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage,

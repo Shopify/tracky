@@ -13,17 +13,17 @@ import simd
 class DataSession {
     let fps: UInt
     let startTime: TimeInterval
-    let outputURL: URL
+    let camerasURL: URL
     let orientation = UIDevice.current.orientation
 
     var runTime: TimeInterval = 0
     var cameraFrames: [CameraFrame] = []
 
     // Capture the start time and view resolution, as well as the eventual output url
-    init(startTime: TimeInterval, fps: UInt, outputURL: URL) {
+    init(startTime: TimeInterval, fps: UInt, camerasURL: URL) {
         self.fps = fps
         self.startTime = startTime
-        self.outputURL = outputURL
+        self.camerasURL = camerasURL
     }
 
     // Add a new ARKit data frame
@@ -51,32 +51,25 @@ class DataSession {
         cameraFrames.append(CameraFrame(blur_score: 100.0, timestamp: Float(runTime), fx: fx, fy: fy, cx: cx, cy: cy, width: videoResolutionX, height: videoResolutionY, t_00: t_00, t_01: t_01, t_02: t_02, t_03: t_03, t_10: t_10, t_11: t_11, t_12: t_12, t_13: t_13, t_20: t_20, t_21: t_21, t_22: t_22, t_23: t_23));
     }
 
-    // Write all the recorded data as a .json file at the configured output URL
     func write(videoSessionRGB: VideoSession) -> Bool {
-        var videoX = videoSessionRGB.videoResolutionX
-        var videoY = videoSessionRGB.videoResolutionY
-        if orientation == .portrait {
-            let tmp = videoX
-            videoX = videoY
-            videoY = tmp
-        }
-        let cameraFrames = CameraFrames(
-            cameraFrames: cameraFrames
-        )
-
         let jsonEncoder = JSONEncoder()
-        guard let jsonData = try? jsonEncoder.encode(cameraFrames),
-              let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
-            print("*** ERROR: Could not encode .json data")
-            return false
+
+        for (index, cameraFrame) in cameraFrames.enumerated() {
+            guard let jsonData = try? jsonEncoder.encode(cameraFrame) else {
+                print("*** ERROR: Could not encode CameraFrame at index \(index)")
+                continue
+            }
+
+            let filename = camerasURL.appendingPathComponent("\(index).json")
+            do {
+                try jsonData.write(to: filename)
+            } catch {
+                print("*** ERROR: Could not write CameraFrame at index \(index) to file: \(error)")
+                return false
+            }
         }
 
-        do {
-            try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
-            print("*** Finished writing .json")
-            return true
-        } catch {
-            return false
-        }
+        print("*** Finished writing CameraFrames")
+        return true
     }
 }
