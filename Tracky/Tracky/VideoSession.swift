@@ -97,6 +97,17 @@ class VideoSession: NSObject {
     }
 
     func convertVideoToFrames(videoURL: URL) {
+        // Create a URL for the frames directory
+        let framesDir = recDir.appendingPathComponent("frames", isDirectory: true)
+
+        // Create the frames directory
+        do {
+            try FileManager.default.createDirectory(at: framesDir, withIntermediateDirectories: true, attributes: nil)
+        } catch {
+            print("*** Error creating frames directory: \(error)")
+            return
+        }
+        
         let asset = AVAsset(url: videoURL)
         guard let assetReader = try? AVAssetReader(asset: asset) else {
             print("*** Could not initialize asset reader")
@@ -112,20 +123,25 @@ class VideoSession: NSObject {
 
         var frameCount = 0
         while let sampleBuffer = readerOutput.copyNextSampleBuffer() {
-            if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
-                // Here you can create a UIImage or an SKTexture from the CIImage
-                let ciImage = CIImage(cvPixelBuffer: imageBuffer)
-                let image = UIImage(ciImage: ciImage)
+            autoreleasepool {
+                if let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) {
+                    // Here you can create a UIImage or an SKTexture from the CIImage
+                    var ciImage: CIImage? = CIImage(cvPixelBuffer: imageBuffer)
+                    var image: UIImage? = UIImage(ciImage: ciImage!)
 
-                // Save image to disk
-                if let data = image.pngData() {
-                    let filename = URL(fileURLWithPath: "frame_\(frameCount).png", relativeTo: recDir)
-                    try? data.write(to: filename)
+                    // Save image to disk
+                    if let data = image!.pngData() {
+                        let filename = framesDir.appendingPathComponent("frame_\(frameCount).png")
+                        try? data.write(to: filename)
+                    }
+
+                    ciImage = nil
+                    image = nil
+                    
+                    frameCount += 1
                 }
-
-                frameCount += 1
+                CMSampleBufferInvalidate(sampleBuffer)
             }
-            CMSampleBufferInvalidate(sampleBuffer)
         }
         
         print("*** numFrames saved to disk: \(frameCount)")
