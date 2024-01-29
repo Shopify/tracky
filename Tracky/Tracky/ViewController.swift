@@ -39,7 +39,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
     // The directory where all the files will be saved
     var recordingDir: URL? = nil
 
-    // Helpers to help encode the data from an ARKit frames into video and .bren files
+    // Helpers to help encode the data from an ARKit frames into video and .json files
     var videoSessionRGB: VideoSession? = nil
     var dataSession: DataSession? = nil
 
@@ -227,7 +227,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         let dat = DataSession(startTime: time,
                               fps: fps,
-                              outputURL: URL(fileURLWithPath: "\(ourEpoch)-camera.bren", relativeTo: recDir))
+                              outputURL: URL(fileURLWithPath: "\(ourEpoch)-camera.json", relativeTo: recDir))
         dataSession = dat
 
         videoSessionRGB = VideoSession(pixelBuffer: frame.capturedImage,
@@ -290,7 +290,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
     }
 
-    // Gathers all the available information and writes out the .bren file with all the tracked transforms
+    // Gathers all the available information and writes out the .json file with all the tracked transforms
     func writeBrenfile() {
         guard let dataSession = dataSession,
               let videoSessionRGB = videoSessionRGB else {
@@ -298,7 +298,7 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
         }
         
         if !dataSession.write(videoSessionRGB: videoSessionRGB) {
-            print("*** Could not write .bren file")
+            print("*** Could not write .json file")
         }
     }
 

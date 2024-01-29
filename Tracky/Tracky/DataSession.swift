@@ -9,7 +9,7 @@ import Foundation
 import UIKit
 import simd
 
-// Helper class for writing an ARKit frame stream into a .bren file with tracked transforms
+// Helper class for writing an ARKit frame stream into a .json file with tracked transforms
 class DataSession {
     let fps: UInt
     let startTime: TimeInterval
@@ -52,7 +52,7 @@ class DataSession {
         cameraFrames.append(CameraFrame(blur_score: 0.0, timestamp: Float(runTime), fx: fx, fy: fy, cx: cx, cy: cy, width: videoResolutionX, height: videoResolutionY, t_00: t_00, t_01: t_01, t_02: t_02, t_03: t_03, t_10: t_10, t_11: t_11, t_12: t_12, t_13: t_13, t_20: t_20, t_21: t_21, t_22: t_22, t_23: t_23));
     }
 
-    // Write all the recorded data as a .bren file at the configured output URL
+    // Write all the recorded data as a .json file at the configured output URL
     func write(videoSessionRGB: VideoSession) -> Bool {
         var videoX = videoSessionRGB.videoResolutionX
         var videoY = videoSessionRGB.videoResolutionY
@@ -61,22 +61,20 @@ class DataSession {
             videoX = videoY
             videoY = tmp
         }
-        let cameraFrames = BrenCameraFrames(
+        let cameraFrames = CameraFrames(
             cameraFrames: cameraFrames
         )
-        let data = BrenWrapper(cameraFrames)
 
-        // Turns out .bren is just JSON :D
         let jsonEncoder = JSONEncoder()
-        guard let jsonData = try? jsonEncoder.encode(data),
+        guard let jsonData = try? jsonEncoder.encode(cameraFrames),
               let json = String(data: jsonData, encoding: String.Encoding.utf8) else {
-            print("*** ERROR: Could not encode .bren json data")
+            print("*** ERROR: Could not encode .json data")
             return false
         }
 
         do {
             try json.write(to: outputURL, atomically: true, encoding: String.Encoding.utf8)
-            print("*** Finished writing .bren")
+            print("*** Finished writing .json")
             return true
         } catch {
             return false
