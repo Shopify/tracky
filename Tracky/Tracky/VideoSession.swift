@@ -119,8 +119,8 @@ class VideoSession: NSObject {
                     var image: UIImage? = UIImage(ciImage: ciImage!)
 
                     // Save image to disk
-                    if let data = image!.pngData() {
-                        let filename = imagesURL.appendingPathComponent("\(frameCount).png")
+                    if let data = image!.jpegData(compressionQuality: 1.0) {
+                        let filename = imagesURL.appendingPathComponent("\(frameCount).jpg")
                         try? data.write(to: filename)
                     }
 
