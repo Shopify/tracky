@@ -281,10 +281,10 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate {
 
         guard let dataSession = dataSession,
               let pov = renderer.pointOfView else { return }
-
+        
         dataSession.addFrame(
             time: time,
-            cameraTransform: pov.simdTransform,
+            cameraTransform: frame.camera.transform,
             intrinsics: frame.camera.intrinsics,
             videoResolutionX: videoSessionRGB?.videoResolutionX ?? 0,
             videoResolutionY: videoSessionRGB?.videoResolutionY ?? 0
