@@ -120,8 +120,10 @@ class VideoSession: NSObject {
 
                     // Save image to disk
                     if let data = image!.jpegData(compressionQuality: 1.0) {
-                        let filename = imagesURL.appendingPathComponent("\(frameCount).jpg")
-                        try? data.write(to: filename)
+                        if frameCount % 15 == 0 {
+                            let filename = imagesURL.appendingPathComponent("\(frameCount).jpg")
+                            try? data.write(to: filename)
+                        }
                     }
 
                     ciImage = nil

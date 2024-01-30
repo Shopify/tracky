@@ -35,6 +35,16 @@ class DataSession {
         let cx: Float = intrinsics[2, 0];
         let cy: Float = intrinsics[2, 1];
         
+        // t_ij
+        // i is the row
+        // j is the column
+        //
+        // [ t_00 t_01 t_02 t_03 ]
+        // [ t_10 t_11 t_12 t_13 ]
+        // [ t_20 t_21 t_22 t_23 ]
+        // [ t_30 t_31 t_32 t_33 ]
+        //
+        // Last row should be [0, 0, 0, 1]
         let t_00: Float = cameraTransform[0, 0]
         let t_01: Float = cameraTransform[1, 0]
         let t_02: Float = cameraTransform[2, 0]
@@ -55,17 +65,19 @@ class DataSession {
         let jsonEncoder = JSONEncoder()
 
         for (index, cameraFrame) in cameraFrames.enumerated() {
-            guard let jsonData = try? jsonEncoder.encode(cameraFrame) else {
-                print("*** ERROR: Could not encode CameraFrame at index \(index)")
-                continue
-            }
+            if index % 15 == 0 {
+                guard let jsonData = try? jsonEncoder.encode(cameraFrame) else {
+                    print("*** ERROR: Could not encode CameraFrame at index \(index)")
+                    continue
+                }
 
-            let filename = camerasURL.appendingPathComponent("\(index).json")
-            do {
-                try jsonData.write(to: filename)
-            } catch {
-                print("*** ERROR: Could not write CameraFrame at index \(index) to file: \(error)")
-                return false
+                let filename = camerasURL.appendingPathComponent("\(index).json")
+                do {
+                    try jsonData.write(to: filename)
+                } catch {
+                    print("*** ERROR: Could not write CameraFrame at index \(index) to file: \(error)")
+                    return false
+                }
             }
         }
 
