@@ -367,10 +367,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             print("ERROR: Could not start recording when ARFrame has no AR depth data")
             return
         }
-        guard let estimatedDepth = frame.estimatedDepthData else {
-            print("ERROR: Could not start recording when ARFrame has no estimated depth data")
-            return
-        }
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
@@ -405,12 +401,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
                                          depth: true,
                                          recordMic: false,
                                          outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
-        videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
-                                                startTime: time,
-                                                fps: dat.fps,
-                                                depth: true,
-                                                recordMic: false,
-                                                outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
 
         // Restart animations from frame 0
         modelNode?.enumerateHierarchy { node, _rest in
@@ -456,6 +446,14 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             videoSessionDepth?.addFrame(timestamp: time, image: sceneDepth)
         }
         if let estimatedDepth = frame.estimatedDepthData {
+			if videoSessionSegmentation == nil {
+				videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
+														startTime: time,
+														fps: dataSession.fps,
+														depth: true,
+														recordMic: false,
+														outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recordingDir))
+			}
             videoSessionSegmentation?.addFrame(timestamp: time, image: estimatedDepth)
         }
 
