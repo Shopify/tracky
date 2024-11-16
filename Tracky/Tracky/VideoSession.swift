@@ -12,6 +12,11 @@ import AVFoundation
 import ARKit
 import CoreImage
 
+enum VideoResolution {
+    case hd
+    case fourK
+}
+
 // Helper class for capturing an ARKit video stream to disk
 class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
     var fps: UInt
@@ -41,8 +46,8 @@ class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
         self.recordMic = recordMic
 
         // Get the width and height of the video by analyzing the pixel buffer
-        videoResolutionX = UInt(CVPixelBufferGetWidthOfPlane(pixelBuffer, 0))
-        videoResolutionY = UInt(CVPixelBufferGetHeightOfPlane(pixelBuffer, 0))
+        videoResolutionX = UInt(CVPixelBufferGetWidth(pixelBuffer))
+        videoResolutionY = UInt(CVPixelBufferGetHeight(pixelBuffer))
 
         // If we're writing depth, we need CoreImage to convert to a depth format that
         // the asset writer can handle, so initialize it upfront
@@ -58,6 +63,10 @@ class VideoSession: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate {
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: videoResolutionX,
             AVVideoHeightKey: videoResolutionY,
+            AVVideoCompressionPropertiesKey: [
+                AVVideoAverageBitRateKey: 20000000, // High bitrate for better quality at 4K
+                AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel
+            ]
         ] as [String : Any])
         assetWriterVideoInput.expectsMediaDataInRealTime = true
         assetWriter.add(assetWriterVideoInput)
