@@ -159,22 +159,37 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         sceneView.session.pause()
     }
 
+    // Updated AR Session configuration to use 4K video format
     func rebuildARSession() {
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
-        configuration.planeDetection = [.horizontal, .vertical]
-        configuration.isAutoFocusEnabled = afButton.title(for: .normal) == kAutofocusON
-        configuration.sceneReconstruction = .meshWithClassification
-        configuration.environmentTexturing = .automatic
-        configuration.isLightEstimationEnabled = true
-        configuration.videoHDRAllowed = false
-        configuration.frameSemantics.insert(.sceneDepth)
-        configuration.frameSemantics.insert(.personSegmentationWithDepth)
-        
-        // Run the view's session
-        sceneView.session.run(configuration)
-        sceneView.session.delegate = self
-    }
+            configuration.planeDetection = [.horizontal, .vertical]
+            configuration.isAutoFocusEnabled = afButton.title(for: .normal) == kAutofocusON
+            configuration.environmentTexturing = .automatic
+            configuration.isLightEstimationEnabled = true
+            configuration.videoHDRAllowed = true
+
+            // Choose 4K video format if available
+            if let fourKFormat = ARWorldTrackingConfiguration.supportedVideoFormats.first(where: {
+                $0.imageResolution == CGSize(width: 3840, height: 2160)
+            }) {
+                configuration.videoFormat = fourKFormat
+                print("Using 4K video format: \(fourKFormat)")
+            } else {
+                print("WARNING: 4K video format not available, using default format.")
+            }
+
+            if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                configuration.frameSemantics.insert(.sceneDepth)
+            }
+
+            if ARWorldTrackingConfiguration.supportsFrameSemantics(.personSegmentationWithDepth) {
+                configuration.frameSemantics.insert(.personSegmentationWithDepth)
+            }
+
+            sceneView.session.run(configuration, options: [.resetTracking, .removeExistingAnchors])
+            sceneView.session.delegate = self
+        }
 
     // Hides all visible UI elements and only leaves the SceneKit view active
     func hideUI() {
@@ -363,14 +378,6 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
             print("ERROR: Could not get renderer pov camera")
             return
         }
-        guard let sceneDepth = frame.sceneDepth?.depthMap else {
-            print("ERROR: Could not start recording when ARFrame has no AR depth data")
-            return
-        }
-        guard let estimatedDepth = frame.estimatedDepthData else {
-            print("ERROR: Could not start recording when ARFrame has no estimated depth data")
-            return
-        }
         guard let documentsPath = try? FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else {
             print("ERROR: Could not get documents path")
             return
@@ -399,18 +406,24 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
                                        depth: false,
                                        recordMic: micActive,
                                        outputURL: URL(fileURLWithPath: "\(ourEpoch)-video.mp4", relativeTo: recDir))
-        videoSessionDepth = VideoSession(pixelBuffer: sceneDepth,
-                                         startTime: time,
-                                         fps: dat.fps,
-                                         depth: true,
-                                         recordMic: false,
-                                         outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
-        videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
-                                                startTime: time,
-                                                fps: dat.fps,
-                                                depth: true,
-                                                recordMic: false,
-                                                outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
+        
+        if let sceneDepth = frame.sceneDepth?.depthMap {
+            videoSessionDepth = VideoSession(pixelBuffer: sceneDepth,
+                                             startTime: time,
+                                             fps: dat.fps,
+                                             depth: true,
+                                             recordMic: false,
+                                             outputURL: URL(fileURLWithPath: "\(ourEpoch)-depth.mp4", relativeTo: recDir))
+        }
+        
+        if let estimatedDepth = frame.estimatedDepthData {
+            videoSessionSegmentation = VideoSession(pixelBuffer: estimatedDepth,
+                                                    startTime: time,
+                                                    fps: dat.fps,
+                                                    depth: true,
+                                                    recordMic: false,
+                                                    outputURL: URL(fileURLWithPath: "\(ourEpoch)-segmentation.mp4", relativeTo: recDir))
+        }
 
         // Restart animations from frame 0
         modelNode?.enumerateHierarchy { node, _rest in
@@ -510,15 +523,31 @@ class ViewController: UIViewController, ARSCNViewDelegate, ARSessionDelegate, UI
         recordTimeLabel.isHidden = true
         isRecording = false
         videoSessionRGB?.finish {
-            self.videoSessionDepth?.finish {
-                self.videoSessionSegmentation?.finish {
-                    print("Finished writing .mp4s")
-                    self.writeARWorldMap()
-                    self.writeBrenfile()
-                    self.videoSessionRGB = nil
+            if let videoSessionDepth = self.videoSessionDepth {
+                videoSessionDepth.finish {
+                    self.finishSegmentationAndFinalize()
                 }
+            } else {
+                self.finishSegmentationAndFinalize()
             }
         }
+    }
+
+    func finishSegmentationAndFinalize() {
+        if let videoSessionSegmentation = self.videoSessionSegmentation {
+            videoSessionSegmentation.finish {
+                self.finalizeRecording()
+            }
+        } else {
+            finalizeRecording()
+        }
+    }
+
+    func finalizeRecording() {
+        print("Finished writing .mp4s")
+        self.writeARWorldMap()
+        self.writeBrenfile()
+        self.videoSessionRGB = nil
     }
 
     // MARK: - UITapGestureRecognizer
