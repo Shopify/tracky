@@ -12,8 +12,8 @@ import simd
 // Helper class for writing an ARKit frame stream into a .bren file with tracked transforms
 class DataSession {
     let fps: UInt
-    let viewResolutionX: UInt
-    let viewResolutionY: UInt
+    var viewResolutionX: UInt
+    var viewResolutionY: UInt
     let startTime: TimeInterval
     let outputURL: URL
     let orientation = UIDevice.current.orientation
@@ -24,12 +24,20 @@ class DataSession {
     var lensDatas: [BrenLensData] = []
 
     // Capture the start time and view resolution, as well as the eventual output url
-    init(startTime: TimeInterval, fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, outputURL: URL) {
+    init(startTime: TimeInterval, fps: UInt, viewResolutionX: UInt, viewResolutionY: UInt, outputURL: URL, resolution: VideoResolution = .hd) {
         self.fps = fps
-        self.viewResolutionX = viewResolutionX
-        self.viewResolutionY = viewResolutionY
         self.startTime = startTime
         self.outputURL = outputURL
+
+        // Set the view resolution based on the selected resolution
+        switch resolution {
+        case .hd:
+            self.viewResolutionX = viewResolutionX
+            self.viewResolutionY = viewResolutionY
+        case .fourK:
+            self.viewResolutionX = 3840
+            self.viewResolutionY = 2160
+        }
     }
 
     // Add a new ARKit data frame
